@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "613067039229",
+    "project_id": "ashta2",
+    "storage_bucket": "ashta2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:613067039229:android:56bfa1cda58cbb34187994",
+        "android_client_info": {
+          "package_name": "com.example.ashta2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEeEKzRUvbPQI1foa9kA_pRz-r_56_xKw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
