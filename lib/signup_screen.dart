@@ -33,7 +33,7 @@ class _SignUpScreenState extends State<SignUpScreen>
   Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      FocusScope.of(context).unfocus(); // Dismiss keyboard
+      FocusScope.of(context).unfocus();
 
       try {
         final credential = await FirebaseAuth.instance
@@ -129,11 +129,8 @@ class _SignUpScreenState extends State<SignUpScreen>
         ),
       ),
       child: SlideTransition(
-        position:
-            Tween<Offset>(
-              begin: const Offset(0, 0.2), // Start slightly lower
-              end: Offset.zero,
-            ).animate(
+        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
+            .animate(
               CurvedAnimation(
                 parent: _animationController,
                 curve: Interval(start, end, curve: Curves.easeOutCubic),

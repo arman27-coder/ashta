@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-    FocusScope.of(context).unfocus(); // Dismiss keyboard
+    FocusScope.of(context).unfocus();
 
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -119,7 +119,6 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildAnimatedItem(Widget child, int index) {
-    // Slightly faster stagger (0.1) for login since there are more elements
     final double start = (index * 0.1).clamp(0.0, 1.0);
     final double end = (start + 0.4).clamp(0.0, 1.0);
 
@@ -131,11 +130,8 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       ),
       child: SlideTransition(
-        position:
-            Tween<Offset>(
-              begin: const Offset(0, 0.2), // Start slightly lower
-              end: Offset.zero,
-            ).animate(
+        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
+            .animate(
               CurvedAnimation(
                 parent: _animationController,
                 curve: Interval(start, end, curve: Curves.easeOutCubic),
@@ -149,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Slightly cleaner white/grey
+      backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -313,7 +309,6 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                   const SizedBox(height: 30),
 
-                  // Google Sign-In Button
                   _buildAnimatedItem(
                     SizedBox(
                       height: 55,

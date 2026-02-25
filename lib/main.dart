@@ -1,10 +1,12 @@
-import 'package:ashta2/home_screen.dart';
-import 'package:ashta2/login_screen.dart';
-import 'package:ashta2/signup_screen.dart';
-import 'package:ashta2/forgot_password_screen.dart';
-import 'package:ashta2/wrapper_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+
+// Relative Imports
+import 'forgot_password_screen.dart';
+import 'home_screen.dart';
+import 'login_screen.dart';
+import 'signup_screen.dart';
+import 'wrapper_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,11 +20,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Auth UI',
+      title: 'Ashta Admin',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             elevation: 2,

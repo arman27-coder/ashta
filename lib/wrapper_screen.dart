@@ -1,7 +1,8 @@
-import 'package:ashta2/home_screen.dart';
-import 'package:ashta2/login_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import 'home_screen.dart';
+import 'login_screen.dart';
 
 class WrapperScreen extends StatefulWidget {
   const WrapperScreen({super.key});
@@ -13,13 +14,18 @@ class WrapperScreen extends StatefulWidget {
 class _WrapperScreenState extends State<WrapperScreen> {
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder(
+    return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
         if (snapshot.hasData) {
-          return HomeScreen();
+          return const HomeScreen();
         } else {
-          return LoginScreen();
+          return const LoginScreen();
         }
       },
     );

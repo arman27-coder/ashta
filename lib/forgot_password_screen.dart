@@ -45,12 +45,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
             ),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            duration: Duration(
-              seconds: 5,
-            ), // Extended duration so the user can read it
+            duration: Duration(seconds: 5),
           ),
         );
-        Navigator.pop(context); // Go back to login screen
+        Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {
       String message;
@@ -89,7 +87,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   }
 
   Widget _buildAnimatedItem(Widget child, int index) {
-    // Calculate a staggered delay based on the index
     final double start = (index * 0.15).clamp(0.0, 1.0);
     final double end = (start + 0.4).clamp(0.0, 1.0);
 
@@ -101,11 +98,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
         ),
       ),
       child: SlideTransition(
-        position:
-            Tween<Offset>(
-              begin: const Offset(0, 0.2), // Start slightly lower
-              end: Offset.zero,
-            ).animate(
+        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
+            .animate(
               CurvedAnimation(
                 parent: _animationController,
                 curve: Interval(start, end, curve: Curves.easeOutCubic),
