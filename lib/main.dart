@@ -1,11 +1,11 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
-// Relative Imports
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
+import 'splash_screen.dart';
 import 'wrapper_screen.dart';
 
 void main() async {
@@ -35,9 +35,10 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      initialRoute: '/',
+      initialRoute: '/splash',
       routes: {
-        '/': (_) => const WrapperScreen(),
+        '/splash': (_) => const SplashScreen(),
+        '/wrapper': (_) => const WrapperScreen(),
         '/home': (_) => const HomeScreen(),
         '/login': (_) => const LoginScreen(),
         '/signup': (_) => const SignUpScreen(),

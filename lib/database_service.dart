@@ -67,8 +67,9 @@ class DatabaseService {
     required String employeeId,
     required double daysUsed,
     required String reason,
-    required String type,
-    required DateTime date,
+    required DateTime fromDate,
+    required DateTime toDate,
+    required bool isHalfDay,
   }) async {
     final empRef = _employees.doc(employeeId);
     final leaveRef = empRef.collection('leaves').doc();
@@ -93,10 +94,11 @@ class DatabaseService {
 
       // 2. Add Leave Record
       transaction.set(leaveRef, {
-        'date': Timestamp.fromDate(date),
+        'fromDate': Timestamp.fromDate(fromDate),
+        'toDate': Timestamp.fromDate(toDate),
+        'isHalfDay': isHalfDay,
         'daysUsed': daysUsed,
         'reason': reason,
-        'type': type,
         'previousBalance': currentBalance,
         'newBalance': newBalance,
         'timestamp': FieldValue.serverTimestamp(),
