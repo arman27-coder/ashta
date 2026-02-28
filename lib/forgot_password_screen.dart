@@ -41,7 +41,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Password reset link sent! Please check your spam or junk folder if you don\'t see it.',
+              'पासवर्ड रीसेट लिंक पाठविली! न दिसल्यास स्पॅम फोल्डर तपासा.',
             ),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
@@ -53,11 +53,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     } on FirebaseAuthException catch (e) {
       String message;
       if (e.code == 'user-not-found') {
-        message = 'No user found for that email.';
+        message = 'या ईमेलसाठी कोणताही वापरकर्ता आढळला नाही.';
       } else if (e.code == 'invalid-email') {
-        message = 'Invalid email format.';
+        message = 'अवैध ईमेल स्वरूप.';
       } else {
-        message = 'Failed to send reset email. Please try again.';
+        message = 'रीसेट लिंक पाठवण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा.';
       }
 
       if (mounted) {
@@ -69,7 +69,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('An unexpected error occurred.'),
+            content: Text('काहीतरी चूक झाली. पुन्हा प्रयत्न करा.'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -143,7 +143,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                   const SizedBox(height: 30),
                   _buildAnimatedItem(
                     const Text(
-                      'Reset Password',
+                      'पासवर्ड रीसेट करा',
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -156,7 +156,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                   const SizedBox(height: 12),
                   _buildAnimatedItem(
                     const Text(
-                      'Enter the email associated with your account and we\'ll send an email with instructions to reset your password.',
+                      'तुमचा नोंदणीकृत ईमेल पत्ता टाका आणि आम्ही तुम्हाला पासवर्ड रीसेट करण्यासाठी लिंक पाठवू.',
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.blueGrey,
@@ -180,7 +180,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                           Icons.email_outlined,
                           color: Colors.blueGrey,
                         ),
-                        labelText: 'Email Address',
+                        labelText: 'ईमेल पत्ता',
                         labelStyle: const TextStyle(color: Colors.blueGrey),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -207,7 +207,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                       ),
                       validator: (value) =>
                           value == null || !value.contains('@')
-                          ? 'Enter a valid email'
+                          ? 'वैध ईमेल टाका'
                           : null,
                     ),
                     3,
@@ -232,7 +232,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                                 ),
                               )
                             : const Text(
-                                "Send Reset Link",
+                                "रीसेट लिंक पाठवा",
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,

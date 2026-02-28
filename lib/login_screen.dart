@@ -49,20 +49,19 @@ class _LoginScreenState extends State<LoginScreen>
       String message;
       switch (e.code) {
         case 'user-not-found':
-          message = 'No user found for that email.';
+          message = 'या ईमेलसाठी कोणताही वापरकर्ता आढळला नाही.';
           break;
         case 'wrong-password':
-          message = 'Wrong password provided.';
+          message = 'चुकीचा पासवर्ड टाकला आहे.';
           break;
         case 'invalid-email':
-          message = 'Invalid email format.';
+          message = 'अवैध ईमेल स्वरूप.';
           break;
         case 'invalid-credential':
-          message =
-              'Invalid credentials. Please check your email and password.';
+          message = 'अवैध क्रेडेन्शियल्स. कृपया तुमचा ईमेल आणि पासवर्ड तपासा.';
           break;
         default:
-          message = 'Login failed. Please try again.';
+          message = 'लॉग इन अयशस्वी. कृपया पुन्हा प्रयत्न करा.';
       }
 
       if (mounted) {
@@ -74,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Something went wrong. Try again later.'),
+            content: Text('काहीतरी चूक झाली. नंतर पुन्हा प्रयत्न करा.'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -167,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen>
                   const SizedBox(height: 20),
                   _buildAnimatedItem(
                     const Text(
-                      'Welcome Back',
+                      'पुन्हा स्वागत आहे',
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -180,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen>
                   const SizedBox(height: 8),
                   _buildAnimatedItem(
                     const Text(
-                      'Sign in to continue',
+                      'सुरू ठेवण्यासाठी साइन इन करा',
                       style: TextStyle(fontSize: 16, color: Colors.blueGrey),
                       textAlign: TextAlign.center,
                     ),
@@ -194,12 +193,12 @@ class _LoginScreenState extends State<LoginScreen>
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       decoration: _buildInputDecoration(
-                        'Email',
+                        'ईमेल',
                         Icons.email_outlined,
                       ),
                       validator: (value) =>
                           value == null || !value.contains('@')
-                          ? 'Enter a valid email'
+                          ? 'वैध ईमेल टाका'
                           : null,
                     ),
                     3,
@@ -214,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen>
                       onFieldSubmitted: (_) => _signIn(),
                       decoration:
                           _buildInputDecoration(
-                            'Password',
+                            'पासवर्ड',
                             Icons.lock_outline,
                           ).copyWith(
                             suffixIcon: IconButton(
@@ -232,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                           ),
                       validator: (value) => value != null && value.length < 6
-                          ? 'Password must be at least 6 characters'
+                          ? 'पासवर्ड किमान ६ अक्षरांचा असावा'
                           : null,
                     ),
                     4,
@@ -248,7 +247,7 @@ class _LoginScreenState extends State<LoginScreen>
                           foregroundColor: Colors.blue.shade700,
                         ),
                         child: const Text(
-                          "Forgot password?",
+                          "पासवर्ड विसरलात?",
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -276,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               )
                             : const Text(
-                                "Log In",
+                                "लॉग इन",
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -295,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen>
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
-                            "OR",
+                            "किंवा",
                             style: TextStyle(
                               color: Colors.blueGrey,
                               fontWeight: FontWeight.bold,
@@ -317,11 +316,11 @@ class _LoginScreenState extends State<LoginScreen>
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        text: "Sign in with Google",
+                        text: "Google सह साइन इन करा",
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text("Google Sign-In coming soon"),
+                              content: Text("Google साइन-इन लवकरच येत आहे"),
                               behavior: SnackBarBehavior.floating,
                             ),
                           );
@@ -329,36 +328,6 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ),
                     8,
-                  ),
-
-                  const SizedBox(height: 40),
-                  _buildAnimatedItem(
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          "Don’t have an account? ",
-                          style: TextStyle(
-                            color: Colors.blueGrey,
-                            fontSize: 16,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.pushNamed(context, '/signup');
-                          },
-                          child: const Text(
-                            "Sign up",
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    9,
                   ),
                 ],
               ),

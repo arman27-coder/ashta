@@ -58,7 +58,7 @@ class DatabaseService {
     return _employees
         .doc(employeeId)
         .collection('leaves')
-        .orderBy('timestamp', descending: true)
+        .orderBy('timestamp', descending: false)
         .snapshots();
   }
 
@@ -80,14 +80,22 @@ class DatabaseService {
       final empSnap = await transaction.get(empRef);
 
       if (!empSnap.exists) {
-        throw Exception("Employee does not exist!");
+        throw Exception("कर्मचारी अस्तित्वात नाही!");
       }
 
       double currentBalance =
           (empSnap.data() as Map<String, dynamic>)['leaveBalance']
               ?.toDouble() ??
           0.0;
+
       newBalance = currentBalance - daysUsed;
+
+      // Prevent balance from dropping below 0
+      if (newBalance < 0) {
+        throw Exception(
+          "पुरेशी रजा शिल्लक नाही. फक्त $currentBalance दिवस शिल्लक आहेत.",
+        );
+      }
 
       // 1. Update Employee Balance
       transaction.update(empRef, {'leaveBalance': newBalance});
@@ -106,5 +114,46 @@ class DatabaseService {
     });
 
     return newBalance;
+  }
+
+  // Delete a mistakenly added leave and refund balance
+  Future<void> deleteLeave(
+    String employeeId,
+    String leaveId,
+    double daysRefund,
+  ) async {
+    final empRef = _employees.doc(employeeId);
+    final leaveRef = empRef.collection('leaves').doc(leaveId);
+
+    await _db.runTransaction((transaction) async {
+      final empSnap = await transaction.get(empRef);
+      if (!empSnap.exists) throw Exception("कर्मचारी अस्तित्वात नाही!");
+
+      // Refund the days back to current balance
+      double currentBalance =
+          (empSnap.data() as Map<String, dynamic>)['leaveBalance']
+              ?.toDouble() ??
+          0.0;
+      double newBalance = currentBalance + daysRefund;
+
+      transaction.update(empRef, {'leaveBalance': newBalance});
+      transaction.delete(leaveRef);
+    });
+  }
+
+  // ==========================================
+  // 3. SETTINGS & BATCH ACTIONS
+  // ==========================================
+
+  // Reset ALL employees back to a default balance (e.g. 8.0 for new year)
+  Future<void> resetAllYearlyLeaves({double defaultBalance = 8.0}) async {
+    final snapshot = await _employees.get();
+    final batch = _db.batch();
+
+    for (var doc in snapshot.docs) {
+      batch.update(doc.reference, {'leaveBalance': defaultBalance});
+    }
+
+    await batch.commit();
   }
 }
