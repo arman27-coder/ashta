@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   bool _isExporting = false;
 
-  String _getFormattedMonthYear() {
+  String _getCurrentMonthYear() {
     final now = DateTime.now();
     const months = [
       'Jan',
@@ -43,11 +43,11 @@ class _HomeScreenState extends State<HomeScreen> {
       'Nov',
       'Dec',
     ];
-    return '${months[now.month - 1]} ${now.year}';
+    return "${months[now.month - 1]} ${now.year}";
   }
 
   // ==========================================
-  // PDF EXPORT FEATURE (Kept in English to avoid font rendering issues in PDF)
+  // PDF EXPORT FEATURE (Center Aligned + Professional Layout)
   // ==========================================
   Future<void> _exportToPDF() async {
     try {
@@ -58,57 +58,80 @@ class _HomeScreenState extends State<HomeScreen> {
           .orderBy('name')
           .get();
 
+      // Load fonts supporting English natively
+      pw.Font ttf;
+      pw.Font ttfBold;
+      try {
+        ttf = await PdfGoogleFonts.robotoRegular();
+        ttfBold = await PdfGoogleFonts.robotoBold();
+      } catch (e) {
+        ttf = pw.Font.helvetica();
+        ttfBold = pw.Font.helveticaBold();
+      }
+
       final pdf = pw.Document();
-      final monthYear = _getFormattedMonthYear();
+      final monthYear = _getCurrentMonthYear();
 
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           build: (pw.Context context) {
             return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text(
-                          'Jilha Parishad, Dharashiv',
-                          style: pw.TextStyle(
-                            fontSize: 18,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue900,
-                          ),
-                        ),
-                        pw.Text(
-                          'Panchayat Samiti, Bhum',
-                          style: pw.TextStyle(
-                            fontSize: 14,
-                            color: PdfColors.grey800,
-                          ),
-                        ),
-                      ],
+                pw.Center(
+                  child: pw.Text(
+                    'Zilla Parishad, Dharashiv',
+                    style: pw.TextStyle(
+                      font: ttfBold,
+                      fontSize: 22,
+                      color: PdfColors.blue900,
                     ),
-                    pw.Text(
-                      monthYear,
-                      style: pw.TextStyle(
-                        fontSize: 14,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.blueGrey,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                pw.SizedBox(height: 20),
+                pw.SizedBox(height: 4),
+                pw.Center(
+                  child: pw.Text(
+                    'Panchayat Samiti, Bhoom',
+                    style: pw.TextStyle(
+                      font: ttf,
+                      fontSize: 16,
+                      color: PdfColors.grey800,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 12),
 
-                pw.Text(
-                  'Employee Directory',
-                  style: pw.TextStyle(
-                    fontSize: 24,
-                    fontWeight: pw.FontWeight.bold,
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.blue50,
+                    borderRadius: pw.BorderRadius.circular(8),
+                    border: pw.Border.all(color: PdfColors.blue200, width: 1),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      pw.Text(
+                        'Employee List',
+                        style: pw.TextStyle(
+                          font: ttfBold,
+                          fontSize: 18,
+                          color: PdfColors.blue900,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        'Date - $monthYear',
+                        style: pw.TextStyle(
+                          font: ttfBold,
+                          fontSize: 13,
+                          color: PdfColors.blueGrey700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 pw.SizedBox(height: 20),
@@ -116,31 +139,40 @@ class _HomeScreenState extends State<HomeScreen> {
                 pw.TableHelper.fromTextArray(
                   context: context,
                   cellPadding: const pw.EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 6,
+                    vertical: 4,
+                    horizontal: 4,
                   ),
+                  cellStyle: pw.TextStyle(font: ttf, fontSize: 10),
                   headerStyle: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.white,
+                    font: ttfBold,
+                    fontSize: 11,
+                    color: PdfColors.blue900,
                   ),
                   headerDecoration: const pw.BoxDecoration(
-                    color: PdfColors.blueGrey800,
+                    color: PdfColors.blue100,
                   ),
+                  cellDecoration: (index, data, rowNum) {
+                    return pw.BoxDecoration(
+                      color: rowNum % 2 == 1
+                          ? PdfColors.grey100
+                          : PdfColors.white,
+                    );
+                  },
                   rowDecoration: const pw.BoxDecoration(
                     border: pw.Border(
                       bottom: pw.BorderSide(
-                        color: PdfColors.grey300,
+                        color: PdfColors.grey400,
                         width: 0.5,
                       ),
                     ),
                   ),
                   cellAlignment: pw.Alignment.centerLeft,
                   columnWidths: {
-                    0: const pw.FixedColumnWidth(40),
+                    0: const pw.FixedColumnWidth(30),
                     1: const pw.FlexColumnWidth(3),
                     2: const pw.FlexColumnWidth(2),
-                    3: const pw.FixedColumnWidth(80),
-                    4: const pw.FixedColumnWidth(60),
+                    3: const pw.FixedColumnWidth(60),
+                    4: const pw.FixedColumnWidth(65),
                     5: const pw.FixedColumnWidth(60),
                   },
                   cellAlignments: {
@@ -151,12 +183,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     4: pw.Alignment.center,
                     5: pw.Alignment.center,
                   },
+                  headerAlignments: {
+                    0: pw.Alignment.center,
+                    1: pw.Alignment.center,
+                    2: pw.Alignment.center,
+                    3: pw.Alignment.center,
+                    4: pw.Alignment.center,
+                    5: pw.Alignment.center,
+                  },
                   headers: [
-                    'Sr No',
+                    'Sr.No',
                     'Full Name',
                     'Designation',
                     'Total Leaves',
-                    'Used',
+                    'Used Leaves',
                     'Balance',
                   ],
                   data: querySnapshot.docs.asMap().entries.map((entry) {
@@ -169,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     return [
                       index.toString(),
                       data['name'] ?? '',
-                      data['designation'] ?? 'N/A',
+                      data['designation'] ?? '-',
                       totalLeaves.toString(),
                       usedLeaves.toString(),
                       balance.toString(),
@@ -184,14 +224,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
       await Printing.sharePdf(
         bytes: await pdf.save(),
-        filename: 'Employee_Directory.pdf',
+        filename: 'Employee_List_${DateTime.now().millisecondsSinceEpoch}.pdf',
       );
     } catch (e, stack) {
       debugPrint("PDF Export Error: $e\n$stack");
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("PDF तयार करताना त्रुटी: $e")));
+        ).showSnackBar(SnackBar(content: Text("Error generating PDF: $e")));
       }
     } finally {
       if (mounted) setState(() => _isExporting = false);
@@ -199,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ==========================================
-  // EXCEL EXPORT FEATURE (Also kept in English)
+  // EXCEL EXPORT FEATURE (Center Aligned)
   // ==========================================
   Future<void> _exportToExcel() async {
     try {
@@ -211,33 +251,84 @@ class _HomeScreenState extends State<HomeScreen> {
           .get();
 
       var excel = Excel.createExcel();
-      excel.rename(excel.getDefaultSheet() ?? 'Sheet1', 'Directory');
-      Sheet sheetObject = excel['Directory'];
+      excel.rename(excel.getDefaultSheet() ?? 'Sheet1', 'Employee List');
+      Sheet sheetObject = excel['Employee List'];
 
-      sheetObject.setColumnWidth(0, 10.0);
-      sheetObject.setColumnWidth(1, 35.0);
-      sheetObject.setColumnWidth(2, 28.0);
-      sheetObject.setColumnWidth(3, 18.0);
+      sheetObject.setColumnWidth(0, 6.0);
+      sheetObject.setColumnWidth(1, 25.0);
+      sheetObject.setColumnWidth(2, 20.0);
+      sheetObject.setColumnWidth(3, 12.0);
       sheetObject.setColumnWidth(4, 15.0);
-      sheetObject.setColumnWidth(5, 15.0);
+      sheetObject.setColumnWidth(5, 12.0);
 
-      final monthYear = _getFormattedMonthYear();
-      sheetObject.appendRow([TextCellValue('Jilha Parishad, Dharashiv')]);
-      sheetObject.appendRow([TextCellValue('Panchayat Samiti, Bhum')]);
-      sheetObject.appendRow([TextCellValue('Date:'), TextCellValue(monthYear)]);
+      final titleStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Center,
+        fontSize: 16,
+      );
+      final subTitleStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Center,
+        fontSize: 14,
+      );
+      final headerStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      );
+
+      final normalCenter = CellStyle(
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      );
+      final normalLeft = CellStyle(
+        horizontalAlign: HorizontalAlign.Left,
+        verticalAlign: VerticalAlign.Center,
+      );
+
+      void addMergeCentered(String text, int rowIndex, CellStyle style) {
+        sheetObject.appendRow([TextCellValue(text)]);
+        sheetObject.merge(
+          CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex),
+          CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex),
+        );
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 0,
+                    rowIndex: rowIndex,
+                  ),
+                )
+                .cellStyle =
+            style;
+      }
+
+      final monthYear = _getCurrentMonthYear();
+
+      addMergeCentered('Zilla Parishad, Dharashiv', 0, titleStyle);
+      addMergeCentered('Panchayat Samiti, Bhoom', 1, subTitleStyle);
+      addMergeCentered('Date - $monthYear', 2, subTitleStyle);
       sheetObject.appendRow([TextCellValue('')]);
-      sheetObject.appendRow([TextCellValue('EMPLOYEE DIRECTORY')]);
+      addMergeCentered('Employee List', 4, titleStyle);
       sheetObject.appendRow([TextCellValue('')]);
 
       sheetObject.appendRow([
-        TextCellValue('SR NO'),
-        TextCellValue('FULL NAME'),
-        TextCellValue('DESIGNATION'),
-        TextCellValue('TOTAL LEAVES'),
-        TextCellValue('USED'),
-        TextCellValue('BALANCE'),
+        TextCellValue('Sr.No'),
+        TextCellValue('Full Name'),
+        TextCellValue('Designation'),
+        TextCellValue('Total Leaves'),
+        TextCellValue('Used Leaves'),
+        TextCellValue('Balance'),
       ]);
 
+      for (int i = 0; i <= 5; i++) {
+        sheetObject
+                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 6))
+                .cellStyle =
+            headerStyle;
+      }
+
+      int currentRow = 7;
       int srNo = 1;
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
@@ -248,30 +339,86 @@ class _HomeScreenState extends State<HomeScreen> {
         sheetObject.appendRow([
           TextCellValue((srNo++).toString()),
           TextCellValue(data['name'] ?? ''),
-          TextCellValue(data['designation'] ?? 'N/A'),
+          TextCellValue(data['designation'] ?? '-'),
           TextCellValue(totalLeaves.toString()),
           TextCellValue(usedLeaves.toString()),
           TextCellValue(balance.toString()),
         ]);
+
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 0,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalCenter;
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 1,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalLeft;
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 2,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalLeft;
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 3,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalCenter;
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 4,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalCenter;
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 5,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalCenter;
+
+        currentRow++;
       }
 
       var fileBytes = excel.save();
       if (fileBytes != null) {
         var directory = await getTemporaryDirectory();
-        String filePath = '${directory.path}/Employee_Directory.xlsx';
+        String filePath =
+            '${directory.path}/Employee_List_${DateTime.now().millisecondsSinceEpoch}.xlsx';
         File file = File(filePath);
         await file.writeAsBytes(fileBytes);
 
-        await Share.shareXFiles([
-          XFile(filePath),
-        ], text: 'Employee Directory Export');
+        await Share.shareXFiles([XFile(filePath)], text: 'Employee Directory');
       }
     } catch (e, stack) {
       debugPrint("Excel Export Error: $e\n$stack");
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Excel तयार करताना त्रुटी: $e")));
+        ).showSnackBar(SnackBar(content: Text("Error generating Excel: $e")));
       }
     } finally {
       if (mounted) setState(() => _isExporting = false);
@@ -282,15 +429,15 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("कर्मचारी हटवा"),
+        title: const Text("Delete Employee"),
         content: Text(
-          "तुम्हाला खात्री आहे का की तुम्हाला $name ला हटवायचे आहे? ही कृती पूर्ववत केली जाऊ शकत नाही.",
+          "Are you sure you want to delete $name? This action cannot be undone.",
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text(
-              "रद्द करा",
+              "Cancel",
               style: TextStyle(color: Colors.blueGrey),
             ),
           ),
@@ -301,14 +448,14 @@ class _HomeScreenState extends State<HomeScreen> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text("$name यशस्वीरित्या हटवले."),
+                    content: Text("$name deleted successfully."),
                     backgroundColor: Colors.redAccent,
                   ),
                 );
               }
             },
             icon: const Icon(Icons.delete),
-            label: const Text("हटवा"),
+            label: const Text("Delete"),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
@@ -349,7 +496,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              isEditing ? "कर्मचारी माहिती बदला" : "नवीन कर्मचारी जोडा",
+              isEditing ? "Edit Employee Details" : "Add New Employee",
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
@@ -358,7 +505,7 @@ class _HomeScreenState extends State<HomeScreen> {
               controller: nameCtrl,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText: "संपूर्ण नाव",
+                labelText: "Full Name",
                 prefixIcon: const Icon(Icons.person_outline),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -370,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
               controller: desigCtrl,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText: "पद",
+                labelText: "Designation",
                 prefixIcon: const Icon(Icons.work_outline),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -382,7 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
               controller: phoneCtrl,
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
-                labelText: "व्हॉट्सॲप नंबर",
+                labelText: "WhatsApp Number",
                 prefixIcon: const Icon(Icons.phone_outlined),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -418,7 +565,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(isEditing ? "बदल जतन करा" : "कर्मचारी जोडा"),
+              child: Text(isEditing ? "Save Changes" : "Add Employee"),
             ),
           ],
         ),
@@ -432,7 +579,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: const Text(
-          "कर्मचारी यादी",
+          "Employee List",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -453,17 +600,17 @@ class _HomeScreenState extends State<HomeScreen> {
           else ...[
             IconButton(
               icon: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
-              tooltip: 'PDF डाउनलोड करा',
+              tooltip: 'Download PDF',
               onPressed: _exportToPDF,
             ),
             IconButton(
               icon: const Icon(Icons.table_view_outlined, color: Colors.green),
-              tooltip: 'Excel डाउनलोड करा',
+              tooltip: 'Download Excel',
               onPressed: _exportToExcel,
             ),
             IconButton(
               icon: const Icon(Icons.settings, color: Colors.blueGrey),
-              tooltip: 'सेटिंग्ज',
+              tooltip: 'Settings',
               onPressed: () => Navigator.pushNamed(context, '/settings'),
             ),
           ],
@@ -471,9 +618,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          // ==============================
-          // Official Organization Banner
-          // ==============================
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -495,7 +639,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "जिल्हा परिषद, धाराशिव",
+                  "Zilla Parishad, Dharashiv",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -505,7 +649,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  "पंचायत समिती, भूम",
+                  "Panchayat Samiti, Bhoom",
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -538,7 +682,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 });
               },
               decoration: InputDecoration(
-                hintText: "नाव किंवा पदाने शोधा...",
+                hintText: "Search by name or designation...",
                 hintStyle: TextStyle(color: Colors.grey.shade400),
                 prefixIcon: const Icon(Icons.search, color: Colors.blueGrey),
                 suffixIcon: _searchQuery.isNotEmpty
@@ -570,7 +714,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return _buildEmptyState("अद्याप कर्मचारी जोडलेले नाहीत.");
+                  return _buildEmptyState("No employees added yet.");
                 }
 
                 final allEmployees = snapshot.data!.docs;
@@ -586,9 +730,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 }).toList();
 
                 if (filteredEmployees.isEmpty) {
-                  return _buildEmptyState(
-                    "तुमच्या शोधाशी जुळणारे कर्मचारी नाहीत.",
-                  );
+                  return _buildEmptyState("No employees match your search.");
                 }
 
                 return LayoutBuilder(
@@ -635,7 +777,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 columns: const [
                                   DataColumn(
                                     label: Text(
-                                      'अ.क्र.',
+                                      'Sr.No',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.blueGrey,
@@ -644,7 +786,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   DataColumn(
                                     label: Text(
-                                      'संपूर्ण नाव',
+                                      'Full Name',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.blueGrey,
@@ -653,7 +795,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   DataColumn(
                                     label: Text(
-                                      'पद',
+                                      'Designation',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.blueGrey,
@@ -662,7 +804,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   DataColumn(
                                     label: Text(
-                                      'एकूण रजा',
+                                      'Total Leaves',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.blueGrey,
@@ -671,7 +813,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   DataColumn(
                                     label: Text(
-                                      'वापरलेल्या',
+                                      'Used Leaves',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.blueGrey,
@@ -680,7 +822,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   DataColumn(
                                     label: Text(
-                                      'शिल्लक',
+                                      'Balance',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.blueGrey,
@@ -689,7 +831,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   DataColumn(
                                     label: Text(
-                                      'कृती',
+                                      'Action',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.blueGrey,
@@ -775,7 +917,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                       DataCell(
                                         Text(
-                                          data['designation'] ?? 'N/A',
+                                          data['designation'] ?? '-',
                                           style: const TextStyle(
                                             color: Colors.black87,
                                           ),
@@ -839,7 +981,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             Icons.delete_outline,
                                             color: Colors.redAccent,
                                           ),
-                                          tooltip: 'कर्मचारी हटवा',
+                                          tooltip: 'Delete Employee',
                                           splashRadius: 24,
                                           onPressed: () => _confirmDelete(
                                             emp.id,
@@ -869,7 +1011,7 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 4,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text(
-          "नवीन जोडा",
+          "Add New",
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,

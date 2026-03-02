@@ -80,7 +80,7 @@ class DatabaseService {
       final empSnap = await transaction.get(empRef);
 
       if (!empSnap.exists) {
-        throw Exception("कर्मचारी अस्तित्वात नाही!");
+        throw Exception("Employee does not exist!");
       }
 
       double currentBalance =
@@ -93,7 +93,7 @@ class DatabaseService {
       // Prevent balance from dropping below 0
       if (newBalance < 0) {
         throw Exception(
-          "पुरेशी रजा शिल्लक नाही. फक्त $currentBalance दिवस शिल्लक आहेत.",
+          "Not enough leave balance. Only $currentBalance days remaining.",
         );
       }
 
@@ -127,7 +127,7 @@ class DatabaseService {
 
     await _db.runTransaction((transaction) async {
       final empSnap = await transaction.get(empRef);
-      if (!empSnap.exists) throw Exception("कर्मचारी अस्तित्वात नाही!");
+      if (!empSnap.exists) throw Exception("Employee does not exist!");
 
       // Refund the days back to current balance
       double currentBalance =

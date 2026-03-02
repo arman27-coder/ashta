@@ -20,7 +20,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text(
-          "वार्षिक रजा रीसेट करा",
+          "Reset Annual Leaves",
           style: TextStyle(color: Colors.red),
         ),
         content: Column(
@@ -28,11 +28,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "चेतावणी: यामुळे प्रत्येक कर्मचाऱ्याची रजा शिल्लक ८.० दिवसांवर रीसेट होईल. ही कृती पूर्ववत केली जाऊ शकत नाही.",
+              "Warning: This will reset every employee's leave balance to 8.0 days. This action cannot be undone.",
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            const Text("पुष्टी करण्यासाठी खाली 'RESET' टाइप करा:"),
+            const Text("Type 'RESET' below to confirm:"),
             const SizedBox(height: 8),
             TextField(
               controller: textCtrl,
@@ -47,7 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text(
-              "रद्द करा",
+              "Cancel",
               style: TextStyle(color: Colors.blueGrey),
             ),
           ),
@@ -63,14 +63,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text(
-                      "तुम्हाला पुष्टी करण्यासाठी RESET टाइप करावे लागेल.",
-                    ),
+                    content: Text("You must type RESET to confirm."),
                   ),
                 );
               }
             },
-            child: const Text("रीसेट करा"),
+            child: const Text("Reset"),
           ),
         ],
       ),
@@ -85,7 +83,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              "सर्वांची रजा शिल्लक ८.० दिवस यशस्वीरित्या रीसेट झाली",
+              "Everyone's leave balance successfully reset to 8.0 days",
             ),
             backgroundColor: Colors.green,
           ),
@@ -94,7 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("त्रुटी: $e"), backgroundColor: Colors.red),
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -106,15 +104,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("लॉग आउट"),
+        title: const Text("Log Out"),
         content: const Text(
-          "तुम्हाला नक्की ॲडमिन पॅनेलमधून बाहेर पडायचे आहे का?",
+          "Are you sure you want to log out of the admin panel?",
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text(
-              "रद्द करा",
+              "Cancel",
               style: TextStyle(color: Colors.blueGrey),
             ),
           ),
@@ -135,7 +133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             },
             icon: const Icon(Icons.logout),
-            label: const Text("लॉग आउट"),
+            label: const Text("Log Out"),
           ),
         ],
       ),
@@ -147,7 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          "सेटिंग्ज",
+          "Settings",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -161,7 +159,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
-                  Text("सर्व कर्मचाऱ्यांची रजा रीसेट करत आहे..."),
+                  Text("Resetting leaves for all employees..."),
                 ],
               ),
             )
@@ -169,7 +167,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 const Text(
-                  "सिस्टम कृती",
+                  "System Actions",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -193,17 +191,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: const Icon(Icons.refresh, color: Colors.red),
                     ),
                     title: const Text(
-                      "वार्षिक रजा रीसेट करा",
+                      "Reset Annual Leaves",
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle: const Text("सर्वांची रजा शिल्लक ८.० दिवस करा"),
+                    subtitle: const Text(
+                      "Set everyone's leave balance to 8.0 days",
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: _confirmReset,
                   ),
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  "खाते",
+                  "Account",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -227,10 +227,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: const Icon(Icons.logout, color: Colors.blueGrey),
                     ),
                     title: const Text(
-                      "लॉग आउट",
+                      "Log Out",
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle: const Text("ॲडमिन पॅनेलमधून बाहेर पडा"),
+                    subtitle: const Text("Exit the admin panel"),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: _confirmLogout,
                   ),

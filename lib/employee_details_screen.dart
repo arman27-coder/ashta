@@ -46,7 +46,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
     try {
       await launchUrl(url);
     } catch (e) {
-      _safeSnackBar("फोन डायलर उघडू शकलो नाही.");
+      _safeSnackBar("Could not open phone dialer.");
     }
   }
 
@@ -69,6 +69,12 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
     return '${months[now.month - 1]} ${now.year}';
   }
 
+  String _formatDate(Timestamp? ts) {
+    if (ts == null) return '-';
+    final d = ts.toDate();
+    return "${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}";
+  }
+
   Future<void> _sendWhatsAppMessage(
     double daysUsed,
     double newBalance,
@@ -76,10 +82,10 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
     String empPhone,
   ) async {
     final String message =
-        "नमस्कार $empName,\n\n"
-        "तुमची *$daysUsed दिवसांची* रजा मंजूर करून नोंदवली गेली आहे.\n"
-        "तुमची उर्वरित रजा शिल्लक *$newBalance दिवस* आहे.\n\n"
-        "धन्यवाद,\nॲडमिन";
+        "Hello $empName,\n\n"
+        "Your leave for *$daysUsed days* has been approved and recorded.\n"
+        "Your remaining leave balance is *$newBalance days*.\n\n"
+        "Thank you,\nAdmin";
 
     String phone = empPhone.replaceAll(RegExp(r'\D'), '');
     if (phone.length == 10) phone = '91$phone';
@@ -95,7 +101,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
       );
       if (!launched) throw Exception("Could not launch");
     } catch (e) {
-      _safeSnackBar("व्हॉट्सॲप उघडू शकलो नाही. ते स्थापित आहे का?");
+      _safeSnackBar("Could not open WhatsApp. Is it installed?");
     }
   }
 
@@ -103,16 +109,16 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("रजा रेकॉर्ड हटवा"),
+        title: const Text("Delete Leave Record"),
         content: Text(
-          "तुम्हाला खात्री आहे का की तुम्हाला '$reason' साठीची रजा हटवायची आहे?\n\n"
-          "हे हटवल्यास कर्मचाऱ्याच्या खात्यात $daysUsed दिवस परत जोडले जातील.",
+          "Are you sure you want to delete the leave for '$reason'?\n\n"
+          "Deleting this will add $daysUsed days back to the employee's balance.",
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text(
-              "रद्द करा",
+              "Cancel",
               style: TextStyle(color: Colors.blueGrey),
             ),
           ),
@@ -122,15 +128,15 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
               try {
                 await _db.deleteLeave(widget.employeeId, leaveId, daysUsed);
                 _safeSnackBar(
-                  "रजा हटवली आणि शिल्लक परत केली.",
+                  "Leave deleted and balance refunded.",
                   backgroundColor: Colors.orange,
                 );
               } catch (e) {
-                _safeSnackBar("त्रुटी: $e", backgroundColor: Colors.red);
+                _safeSnackBar("Error: $e", backgroundColor: Colors.red);
               }
             },
             icon: const Icon(Icons.delete),
-            label: const Text("हटवा आणि परत करा"),
+            label: const Text("Delete & Refund"),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
@@ -169,7 +175,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              "कर्मचारी माहिती बदला",
+              "Edit Employee Details",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
@@ -178,7 +184,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
               controller: nameCtrl,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText: "संपूर्ण नाव",
+                labelText: "Full Name",
                 prefixIcon: const Icon(Icons.person_outline),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -190,7 +196,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
               controller: desigCtrl,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText: "पद",
+                labelText: "Designation",
                 prefixIcon: const Icon(Icons.work_outline),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -202,7 +208,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
               controller: phoneCtrl,
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
-                labelText: "व्हॉट्सॲप नंबर",
+                labelText: "WhatsApp Number",
                 prefixIcon: const Icon(Icons.phone_outlined),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -224,7 +230,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                 if (mounted) {
                   Navigator.pop(ctx);
                   _safeSnackBar(
-                    "माहिती यशस्वीरित्या बदलली!",
+                    "Details updated successfully!",
                     backgroundColor: Colors.green,
                   );
                 }
@@ -238,7 +244,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                 ),
               ),
               child: const Text(
-                "बदल जतन करा",
+                "Save Changes",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -248,7 +254,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
     );
   }
 
-  // ====================== PDF EXPORT (Kept English) ======================
+  // ====================== PDF EXPORT (Centered layout) ======================
   Future<void> _exportToPDF() async {
     try {
       setState(() => _isExporting = true);
@@ -258,7 +264,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
           .doc(widget.employeeId)
           .get();
       final currentName = empDoc.data()?['name'] ?? widget.employeeName;
-      final designation = empDoc.data()?['designation'] ?? 'N/A';
+      final designation = empDoc.data()?['designation'] ?? '-';
 
       final leavesQuery = await FirebaseFirestore.instance
           .collection('employees')
@@ -267,6 +273,17 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
           .orderBy('timestamp', descending: false)
           .get();
 
+      // Load standard fonts for English
+      pw.Font ttf;
+      pw.Font ttfBold;
+      try {
+        ttf = await PdfGoogleFonts.robotoRegular();
+        ttfBold = await PdfGoogleFonts.robotoBold();
+      } catch (e) {
+        ttf = pw.Font.helvetica();
+        ttfBold = pw.Font.helveticaBold();
+      }
+
       final pdf = pw.Document();
       final monthYear = _getFormattedMonthYear();
 
@@ -274,83 +291,116 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           build: (pw.Context context) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'Jilha Parishad, Dharashiv',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue900,
-                        ),
-                      ),
-                      pw.Text(
-                        'Panchayat Samiti, Bhum',
-                        style: pw.TextStyle(
-                          fontSize: 14,
-                          color: PdfColors.grey800,
-                        ),
-                      ),
-                    ],
+              pw.Center(
+                child: pw.Text(
+                  'Zilla Parishad, Dharashiv',
+                  style: pw.TextStyle(
+                    font: ttfBold,
+                    fontSize: 22,
+                    color: PdfColors.blue900,
                   ),
-                  pw.Text(
-                    monthYear,
-                    style: pw.TextStyle(
-                      fontSize: 14,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.blueGrey,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  'Panchayat Samiti, Bhoom',
+                  style: pw.TextStyle(
+                    font: ttf,
+                    fontSize: 16,
+                    color: PdfColors.grey800,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 25),
+
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(
+                    color: PdfColors.blueGrey300,
+                    width: 1.5,
+                  ),
+                  borderRadius: pw.BorderRadius.circular(8),
+                  color: PdfColors.blue50,
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Leave Ledger',
+                          style: pw.TextStyle(
+                            font: ttfBold,
+                            fontSize: 18,
+                            color: PdfColors.blue900,
+                          ),
+                        ),
+                        pw.SizedBox(height: 8),
+                        pw.Text(
+                          'Name: $currentName',
+                          style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                        ),
+                        pw.Text(
+                          'Designation: $designation',
+                          style: pw.TextStyle(font: ttf, fontSize: 13),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 20),
-              pw.Text(
-                'Leave Ledger',
-                style: pw.TextStyle(
-                  fontSize: 24,
-                  fontWeight: pw.FontWeight.bold,
+                    pw.Text(
+                      'Date - $monthYear',
+                      style: pw.TextStyle(
+                        font: ttfBold,
+                        fontSize: 13,
+                        color: PdfColors.blueGrey,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              pw.SizedBox(height: 15),
-              pw.Text(
-                'Name: $currentName',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Text(
-                'Designation: $designation',
-                style: pw.TextStyle(fontSize: 14),
               ),
               pw.SizedBox(height: 20),
 
               pw.TableHelper.fromTextArray(
                 context: context,
                 cellPadding: const pw.EdgeInsets.symmetric(
-                  vertical: 8,
-                  horizontal: 6,
+                  vertical: 4,
+                  horizontal: 4,
                 ),
+                cellStyle: pw.TextStyle(font: ttf, fontSize: 10),
                 headerStyle: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.white,
+                  font: ttfBold,
+                  fontSize: 11,
+                  color: PdfColors.blue900,
                 ),
                 headerDecoration: const pw.BoxDecoration(
-                  color: PdfColors.blueGrey800,
+                  color: PdfColors.blue100,
                 ),
+                cellDecoration: (index, data, rowNum) {
+                  return pw.BoxDecoration(
+                    color: rowNum % 2 == 1
+                        ? PdfColors.grey100
+                        : PdfColors.white,
+                  );
+                },
                 rowDecoration: const pw.BoxDecoration(
                   border: pw.Border(
-                    bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+                    bottom: pw.BorderSide(color: PdfColors.grey400, width: 0.5),
                   ),
                 ),
                 cellAlignment: pw.Alignment.centerLeft,
+                headerAlignments: {
+                  0: pw.Alignment.center,
+                  1: pw.Alignment.center,
+                  2: pw.Alignment.center,
+                  3: pw.Alignment.center,
+                  4: pw.Alignment.center,
+                  5: pw.Alignment.center,
+                  6: pw.Alignment.center,
+                },
                 cellAlignments: {
                   0: pw.Alignment.center,
                   1: pw.Alignment.center,
@@ -361,22 +411,22 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                   6: pw.Alignment.center,
                 },
                 columnWidths: {
-                  0: const pw.FixedColumnWidth(40),
-                  1: const pw.FixedColumnWidth(40),
-                  2: const pw.FixedColumnWidth(70),
-                  3: const pw.FixedColumnWidth(70),
-                  4: const pw.FixedColumnWidth(50),
+                  0: const pw.FixedColumnWidth(30),
+                  1: const pw.FixedColumnWidth(75),
+                  2: const pw.FixedColumnWidth(65),
+                  3: const pw.FixedColumnWidth(65),
+                  4: const pw.FixedColumnWidth(45),
                   5: const pw.FlexColumnWidth(2),
-                  6: const pw.FixedColumnWidth(40),
+                  6: const pw.FixedColumnWidth(75),
                 },
                 headers: [
-                  'Sr No',
-                  'OB',
-                  'From Date',
-                  'To Date',
+                  'Sr.No',
+                  'Opening Balance',
+                  'From',
+                  'To',
                   'Days',
                   'Reason',
-                  'CB',
+                  'Closing Balance',
                 ],
                 data: leavesQuery.docs.asMap().entries.map((entry) {
                   final index = entry.key + 1;
@@ -387,12 +437,8 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                   return [
                     index.toString(),
                     data['previousBalance']?.toString() ?? '-',
-                    fDate != null
-                        ? "${fDate.toDate().day}/${fDate.toDate().month}/${fDate.toDate().year}"
-                        : '-',
-                    tDate != null
-                        ? "${tDate.toDate().day}/${tDate.toDate().month}/${tDate.toDate().year}"
-                        : '-',
+                    _formatDate(fDate),
+                    _formatDate(tDate),
                     data['daysUsed']?.toString() ?? '-',
                     data['reason'] ?? '',
                     data['newBalance']?.toString() ?? '-',
@@ -409,13 +455,13 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
         filename: 'Leave_Ledger_${currentName.replaceAll(' ', '_')}.pdf',
       );
     } catch (e) {
-      _safeSnackBar("PDF तयार करताना त्रुटी: $e");
+      _safeSnackBar("Error generating PDF: $e");
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }
   }
 
-  // ====================== EXCEL EXPORT (Kept English) ======================
+  // ====================== EXCEL EXPORT (Centered Layout) ======================
   Future<void> _exportToExcel() async {
     try {
       setState(() => _isExporting = true);
@@ -425,7 +471,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
           .doc(widget.employeeId)
           .get();
       final currentName = empDoc.data()?['name'] ?? widget.employeeName;
-      final designation = empDoc.data()?['designation'] ?? 'N/A';
+      final designation = empDoc.data()?['designation'] ?? '-';
 
       final leavesQuery = await FirebaseFirestore.instance
           .collection('employees')
@@ -438,40 +484,125 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
       excel.rename(excel.getDefaultSheet() ?? 'Sheet1', 'Leave Ledger');
       Sheet sheetObject = excel['Leave Ledger'];
 
-      sheetObject.setColumnWidth(0, 10.0);
-      sheetObject.setColumnWidth(1, 12.0);
-      sheetObject.setColumnWidth(2, 18.0);
-      sheetObject.setColumnWidth(3, 18.0);
-      sheetObject.setColumnWidth(4, 15.0);
+      sheetObject.setColumnWidth(0, 6.0);
+      sheetObject.setColumnWidth(1, 15.0);
+      sheetObject.setColumnWidth(2, 12.0);
+      sheetObject.setColumnWidth(3, 12.0);
+      sheetObject.setColumnWidth(4, 10.0);
       sheetObject.setColumnWidth(5, 45.0);
-      sheetObject.setColumnWidth(6, 12.0);
+      sheetObject.setColumnWidth(6, 15.0);
+
+      final titleStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Center,
+        fontSize: 16,
+      );
+      final subTitleStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Center,
+        fontSize: 14,
+      );
+      final headerStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      );
+
+      final normalCenter = CellStyle(
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      );
+      final normalLeft = CellStyle(
+        horizontalAlign: HorizontalAlign.Left,
+        verticalAlign: VerticalAlign.Center,
+      );
+
+      final labelStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Right,
+      );
+      final valueStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+
+      void addMergeCentered(
+        String text,
+        int rowIndex,
+        CellStyle style,
+        int maxCol,
+      ) {
+        sheetObject.appendRow([TextCellValue(text)]);
+        sheetObject.merge(
+          CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex),
+          CellIndex.indexByColumnRow(columnIndex: maxCol, rowIndex: rowIndex),
+        );
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 0,
+                    rowIndex: rowIndex,
+                  ),
+                )
+                .cellStyle =
+            style;
+      }
 
       final monthYear = _getFormattedMonthYear();
-      sheetObject.appendRow([TextCellValue('Jilha Parishad, Dharashiv')]);
-      sheetObject.appendRow([TextCellValue('Panchayat Samiti, Bhum')]);
-      sheetObject.appendRow([TextCellValue('Date:'), TextCellValue(monthYear)]);
+
+      addMergeCentered('Zilla Parishad, Dharashiv', 0, titleStyle, 6);
+      addMergeCentered('Panchayat Samiti, Bhoom', 1, subTitleStyle, 6);
+      addMergeCentered('Date - $monthYear', 2, subTitleStyle, 6);
       sheetObject.appendRow([TextCellValue('')]);
-      sheetObject.appendRow([TextCellValue('LEAVE LEDGER')]);
+      addMergeCentered('Leave Ledger', 4, titleStyle, 6);
+      sheetObject.appendRow([TextCellValue('')]);
+
       sheetObject.appendRow([
         TextCellValue('Name:'),
         TextCellValue(currentName),
       ]);
+      sheetObject
+              .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6))
+              .cellStyle =
+          labelStyle;
+      sheetObject
+              .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 6))
+              .cellStyle =
+          valueStyle;
+
       sheetObject.appendRow([
         TextCellValue('Designation:'),
         TextCellValue(designation),
       ]);
+      sheetObject
+              .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7))
+              .cellStyle =
+          labelStyle;
+      sheetObject
+              .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 7))
+              .cellStyle =
+          valueStyle;
+
       sheetObject.appendRow([TextCellValue('')]);
 
       sheetObject.appendRow([
-        TextCellValue('SR NO'),
-        TextCellValue('OB'),
-        TextCellValue('FROM DATE'),
-        TextCellValue('TO DATE'),
-        TextCellValue('DAYS USED'),
-        TextCellValue('REASON'),
-        TextCellValue('CB'),
+        TextCellValue('Sr.No'),
+        TextCellValue('Opening Balance'),
+        TextCellValue('From'),
+        TextCellValue('To'),
+        TextCellValue('Days'),
+        TextCellValue('Reason'),
+        TextCellValue('Closing Balance'),
       ]);
 
+      for (int i = 0; i <= 6; i++) {
+        sheetObject
+                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 9))
+                .cellStyle =
+            headerStyle;
+      }
+
+      int currentRow = 10;
       int srNo = 1;
       for (var doc in leavesQuery.docs) {
         final data = doc.data();
@@ -481,20 +612,78 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
         sheetObject.appendRow([
           TextCellValue((srNo++).toString()),
           TextCellValue(data['previousBalance']?.toString() ?? '-'),
-          TextCellValue(
-            fDate != null
-                ? "${fDate.toDate().day}/${fDate.toDate().month}/${fDate.toDate().year}"
-                : '-',
-          ),
-          TextCellValue(
-            tDate != null
-                ? "${tDate.toDate().day}/${tDate.toDate().month}/${tDate.toDate().year}"
-                : '-',
-          ),
+          TextCellValue(_formatDate(fDate)),
+          TextCellValue(_formatDate(tDate)),
           TextCellValue(data['daysUsed']?.toString() ?? '-'),
           TextCellValue(data['reason'] ?? ''),
           TextCellValue(data['newBalance']?.toString() ?? '-'),
         ]);
+
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 0,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalCenter;
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 1,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalCenter;
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 2,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalCenter;
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 3,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalCenter;
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 4,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalCenter;
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 5,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalLeft;
+        sheetObject
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: 6,
+                    rowIndex: currentRow,
+                  ),
+                )
+                .cellStyle =
+            normalCenter;
+
+        currentRow++;
       }
 
       var fileBytes = excel.save();
@@ -507,10 +696,10 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
 
         await Share.shareXFiles([
           XFile(filePath),
-        ], text: 'Leave Ledger for $currentName');
+        ], text: 'Leave Ledger - $currentName');
       }
     } catch (e) {
-      _safeSnackBar("Excel तयार करताना त्रुटी: $e");
+      _safeSnackBar("Error generating Excel: $e");
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }
@@ -557,7 +746,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  "रजा नोंदवा",
+                  "Record Leave",
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
@@ -583,7 +772,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                         },
                         icon: const Icon(Icons.date_range, size: 18),
                         label: Text(
-                          "पासून: ${fromDate.day}/${fromDate.month}/${fromDate.year}",
+                          "From: ${fromDate.day.toString().padLeft(2, '0')}/${fromDate.month.toString().padLeft(2, '0')}/${fromDate.year}",
                         ),
                       ),
                     ),
@@ -601,7 +790,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                         },
                         icon: const Icon(Icons.date_range, size: 18),
                         label: Text(
-                          "पर्यंत: ${toDate.day}/${toDate.month}/${toDate.year}",
+                          "To: ${toDate.day.toString().padLeft(2, '0')}/${toDate.month.toString().padLeft(2, '0')}/${toDate.year}",
                         ),
                       ),
                     ),
@@ -609,7 +798,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                 ),
 
                 CheckboxListTile(
-                  title: const Text("+ अर्धा दिवस (०.५ वजा होईल)"),
+                  title: const Text("+ Half Day (0.5 deducted)"),
                   value: isHalfDay,
                   activeColor: Colors.blue,
                   contentPadding: EdgeInsets.zero,
@@ -621,7 +810,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                   controller: reasonCtrl,
                   textCapitalization: TextCapitalization.sentences,
                   decoration: InputDecoration(
-                    labelText: "रजेचे कारण",
+                    labelText: "Reason for Leave",
                     prefixIcon: const Icon(Icons.edit_note),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -637,7 +826,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    "एकूण वजा होणारे दिवस: ${calculateDays()}",
+                    "Total days to deduct: ${calculateDays()}",
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
@@ -656,13 +845,15 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                           final reason = reasonCtrl.text.trim();
 
                           if (days <= 0 || reason.isEmpty) {
-                            _safeSnackBar("कृपया कारण आणि वैध तारखा द्या");
+                            _safeSnackBar(
+                              "Please provide a reason and valid dates",
+                            );
                             return;
                           }
 
                           if (days > currentBalance) {
                             _safeSnackBar(
-                              "पुरेशी रजा नाही! तुमच्याकडे फक्त $currentBalance दिवस शिल्लक आहेत.",
+                              "Not enough leave! You only have $currentBalance days remaining.",
                               backgroundColor: Colors.red,
                             );
                             return;
@@ -685,7 +876,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                             Navigator.pop(ctx);
 
                             _safeSnackBar(
-                              "रजा यशस्वीरित्या नोंदवली गेली!",
+                              "Leave recorded successfully!",
                               backgroundColor: Colors.green,
                             );
 
@@ -693,15 +884,15 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                               showDialog(
                                 context: context,
                                 builder: (dialogCtx) => AlertDialog(
-                                  title: const Text("रजा नोंदवली गेली"),
+                                  title: const Text("Leave Recorded"),
                                   content: const Text(
-                                    "तुम्हाला कर्मचाऱ्याला व्हॉट्सॲपवर कळवायचे आहे का?",
+                                    "Do you want to notify the employee on WhatsApp?",
                                   ),
                                   actions: [
                                     TextButton(
                                       onPressed: () => Navigator.pop(dialogCtx),
                                       child: const Text(
-                                        "नको",
+                                        "No",
                                         style: TextStyle(color: Colors.grey),
                                       ),
                                     ),
@@ -720,7 +911,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                                         foregroundColor: Colors.white,
                                       ),
                                       icon: const Icon(Icons.message),
-                                      label: const Text("व्हॉट्सॲपवर पाठवा"),
+                                      label: const Text("Send via WhatsApp"),
                                     ),
                                   ],
                                 ),
@@ -728,7 +919,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                             }
                           } catch (e) {
                             _safeSnackBar(
-                              "त्रुटी: $e",
+                              "Error: $e",
                               backgroundColor: Colors.red,
                             );
                           } finally {
@@ -755,7 +946,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                           ),
                         )
                       : const Text(
-                          "जतन करा",
+                          "Save",
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -772,8 +963,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Wrapping the entire Scaffold in StreamBuilder ensures that edits to the
-    // employee's name/phone update instantly in the AppBar and Body.
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('employees')
@@ -823,7 +1012,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
               else ...[
                 IconButton(
                   icon: const Icon(Icons.edit, color: Colors.blueGrey),
-                  tooltip: 'माहिती बदला',
+                  tooltip: 'Edit Details',
                   onPressed: () => _showEditEmployeeSheet(
                     currentName,
                     designation,
@@ -832,7 +1021,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.call, color: Colors.blue),
-                  tooltip: 'कॉल करा',
+                  tooltip: 'Call',
                   onPressed: () => _callEmployee(currentPhone),
                 ),
                 IconButton(
@@ -840,7 +1029,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                     Icons.picture_as_pdf,
                     color: Colors.redAccent,
                   ),
-                  tooltip: 'PDF डाउनलोड करा',
+                  tooltip: 'Download PDF',
                   onPressed: _exportToPDF,
                 ),
                 IconButton(
@@ -848,7 +1037,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                     Icons.table_view_outlined,
                     color: Colors.green,
                   ),
-                  tooltip: 'Excel डाउनलोड करा',
+                  tooltip: 'Download Excel',
                   onPressed: _exportToExcel,
                 ),
               ],
@@ -856,9 +1045,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
           ),
           body: Column(
             children: [
-              // ==============================
-              // Official Organization Banner
-              // ==============================
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -883,7 +1069,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "जिल्हा परिषद, धाराशिव",
+                      "Zilla Parishad, Dharashiv",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -893,7 +1079,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      "पंचायत समिती, भूम",
+                      "Panchayat Samiti, Bhoom",
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -905,9 +1091,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                 ),
               ),
 
-              // ==============================
-              // Employee Stats
-              // ==============================
               Column(
                 children: [
                   Padding(
@@ -972,7 +1155,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                           child: Column(
                             children: [
                               Text(
-                                "एकूण शिल्लक",
+                                "Total Balance",
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: balance <= 0
@@ -1011,7 +1194,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                       ),
                       icon: const Icon(Icons.add),
                       label: const Text(
-                        "रजा नोंदवा",
+                        "Record Leave",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -1038,7 +1221,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    "रजा खातेवही",
+                    "Leave Ledger",
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -1048,9 +1231,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                 ),
               ),
 
-              // ==============================
-              // Leave Ledger
-              // ==============================
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: _db.getEmployeeLeavesStream(widget.employeeId),
@@ -1062,7 +1242,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                       return const Center(
                         child: Text(
-                          "कोणतीही रजा नोंदवलेली नाही.",
+                          "No leaves recorded.",
                           style: TextStyle(color: Colors.grey),
                         ),
                       );
@@ -1099,7 +1279,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                               columns: const [
                                 DataColumn(
                                   label: Text(
-                                    'अ.क्र.',
+                                    'Sr.No',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -1107,7 +1287,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                                 ),
                                 DataColumn(
                                   label: Text(
-                                    'आरंभीची शिल्लक',
+                                    'Opening Balance',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -1115,7 +1295,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                                 ),
                                 DataColumn(
                                   label: Text(
-                                    'पासून',
+                                    'From',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -1123,7 +1303,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                                 ),
                                 DataColumn(
                                   label: Text(
-                                    'पर्यंत',
+                                    'To',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -1131,7 +1311,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                                 ),
                                 DataColumn(
                                   label: Text(
-                                    'घेतलेले दिवस',
+                                    'Used Days',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -1139,7 +1319,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                                 ),
                                 DataColumn(
                                   label: Text(
-                                    'कारण',
+                                    'Reason',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -1147,7 +1327,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                                 ),
                                 DataColumn(
                                   label: Text(
-                                    'अखेरची शिल्लक',
+                                    'Closing Balance',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -1155,7 +1335,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                                 ),
                                 DataColumn(
                                   label: Text(
-                                    'कृती',
+                                    'Action',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -1183,20 +1363,8 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                                             '-',
                                       ),
                                     ),
-                                    DataCell(
-                                      Text(
-                                        fDate != null
-                                            ? "${fDate.toDate().day}/${fDate.toDate().month}/${fDate.toDate().year}"
-                                            : '-',
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        tDate != null
-                                            ? "${tDate.toDate().day}/${tDate.toDate().month}/${tDate.toDate().year}"
-                                            : '-',
-                                      ),
-                                    ),
+                                    DataCell(Text(_formatDate(fDate))),
+                                    DataCell(Text(_formatDate(tDate))),
                                     DataCell(
                                       Text(
                                         data['daysUsed']?.toString() ?? '-',
@@ -1224,7 +1392,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                                           size: 20,
                                         ),
                                         splashRadius: 20,
-                                        tooltip: "रेकॉर्ड हटवा",
+                                        tooltip: "Delete Record",
                                         onPressed: () => _confirmDeleteLeave(
                                           doc.id,
                                           (data['daysUsed'] ?? 0.0).toDouble(),
