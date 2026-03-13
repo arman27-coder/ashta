@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+import 'app_constants.dart';
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -19,7 +21,6 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // Elegant and modern entry animations
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
@@ -49,7 +50,6 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // Navigate to Auth Wrapper after 3.5 seconds
     Timer(const Duration(milliseconds: 3500), () {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/wrapper');
@@ -73,15 +73,14 @@ class _SplashScreenState extends State<SplashScreen>
             end: Alignment.bottomRight,
             colors: [
               Colors.blue.shade900,
-              const Color(0xFF1E88E5), // Lighter vibrant blue
-              const Color(0xFF1565C0), // Deep blue
+              const Color(0xFF1E88E5),
+              const Color(0xFF1565C0),
             ],
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: Stack(
           children: [
-            // Ambient Geometric Accents
             Positioned(
               top: -100,
               right: -50,
@@ -107,7 +106,6 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
 
-            // Main Core Content
             Center(
               child: FadeTransition(
                 opacity: _fadeAnimation,
@@ -118,7 +116,6 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // White glowing icon container
                         Container(
                           padding: const EdgeInsets.all(32),
                           decoration: BoxDecoration(
@@ -145,9 +142,8 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         const SizedBox(height: 32),
 
-                        // Organization Details
                         const Text(
-                          "Zilla Parishad, Dharashiv",
+                          AppConstants.orgName,
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -164,7 +160,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          "Panchayat Samiti, Bhoom",
+                          AppConstants.subOrgName,
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w500,
@@ -174,9 +170,8 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         const SizedBox(height: 40),
 
-                        // Brand Name
                         const Text(
-                          "ASHTA",
+                          AppConstants.appName,
                           style: TextStyle(
                             fontSize: 52,
                             fontWeight: FontWeight.w900,
@@ -193,7 +188,6 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         const SizedBox(height: 16),
 
-                        // Elegant Subtitle
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -208,7 +202,7 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                           ),
                           child: const Text(
-                            "Casual Leave Ledger",
+                            AppConstants.appSubtitle,
                             style: TextStyle(
                               fontSize: 15,
                               letterSpacing: 2.0,
@@ -224,7 +218,6 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
 
-            // Clean, minimal loading indicator at bottom
             Positioned(
               bottom: 50,
               left: 0,

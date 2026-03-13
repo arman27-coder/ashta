@@ -1,50 +1,78 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'app_constants.dart';
 
 class DatabaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Collection References
   CollectionReference get _employees => _db.collection('employees');
+  CollectionReference get _users => _db.collection('users');
 
   // ==========================================
-  // 1. EMPLOYEE MANAGEMENT
+  // 1. EMPLOYEE MANAGEMENT & PHOTOS
   // ==========================================
 
-  // Stream all employees (ordered by name)
   Stream<QuerySnapshot> getEmployeesStream() {
     return _employees.orderBy('name').snapshots();
   }
 
-  // Add a new employee
+  // Upload Photo to Firebase Storage
+  Future<String?> uploadProfilePhoto(String employeeId, File imageFile) async {
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('employee_photos')
+          .child('$employeeId.jpg');
+
+      await ref.putFile(imageFile);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<void> addEmployee(
     String name,
     String designation,
     String phone,
-  ) async {
+    String department, {
+    String? photoUrl,
+  }) async {
     await _employees.add({
       'name': name,
       'designation': designation,
       'phone': phone,
-      'leaveBalance': 8.0, // Default starting balance
+      'department': department,
+      'photoUrl': photoUrl,
+      'leaveBalance': AppConstants.defaultAnnualLeaves,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
-  // Update an existing employee
   Future<void> updateEmployee(
     String id,
     String name,
     String designation,
     String phone,
-  ) async {
-    await _employees.doc(id).update({
+    String department, {
+    String? photoUrl,
+  }) async {
+    Map<String, dynamic> dataToUpdate = {
       'name': name,
       'designation': designation,
       'phone': phone,
-    });
+      'department': department,
+    };
+
+    if (photoUrl != null) {
+      dataToUpdate['photoUrl'] = photoUrl;
+    }
+
+    await _employees.doc(id).update(dataToUpdate);
   }
 
-  // Delete an employee
   Future<void> deleteEmployee(String id) async {
     await _employees.doc(id).delete();
   }
@@ -53,7 +81,6 @@ class DatabaseService {
   // 2. LEAVE MANAGEMENT
   // ==========================================
 
-  // Stream leave history for a specific employee
   Stream<QuerySnapshot> getEmployeeLeavesStream(String employeeId) {
     return _employees
         .doc(employeeId)
@@ -62,7 +89,6 @@ class DatabaseService {
         .snapshots();
   }
 
-  // Record a leave and automatically update balance
   Future<double> recordLeave({
     required String employeeId,
     required double daysUsed,
@@ -73,15 +99,11 @@ class DatabaseService {
   }) async {
     final empRef = _employees.doc(employeeId);
     final leaveRef = empRef.collection('leaves').doc();
-
     double newBalance = 0.0;
 
     await _db.runTransaction((transaction) async {
       final empSnap = await transaction.get(empRef);
-
-      if (!empSnap.exists) {
-        throw Exception("Employee does not exist!");
-      }
+      if (!empSnap.exists) throw Exception("Employee does not exist!");
 
       double currentBalance =
           (empSnap.data() as Map<String, dynamic>)['leaveBalance']
@@ -90,17 +112,13 @@ class DatabaseService {
 
       newBalance = currentBalance - daysUsed;
 
-      // Prevent balance from dropping below 0
       if (newBalance < 0) {
         throw Exception(
           "Not enough leave balance. Only $currentBalance days remaining.",
         );
       }
 
-      // 1. Update Employee Balance
       transaction.update(empRef, {'leaveBalance': newBalance});
-
-      // 2. Add Leave Record
       transaction.set(leaveRef, {
         'fromDate': Timestamp.fromDate(fromDate),
         'toDate': Timestamp.fromDate(toDate),
@@ -116,7 +134,6 @@ class DatabaseService {
     return newBalance;
   }
 
-  // Delete a mistakenly added leave and refund balance
   Future<void> deleteLeave(
     String employeeId,
     String leaveId,
@@ -129,7 +146,6 @@ class DatabaseService {
       final empSnap = await transaction.get(empRef);
       if (!empSnap.exists) throw Exception("Employee does not exist!");
 
-      // Refund the days back to current balance
       double currentBalance =
           (empSnap.data() as Map<String, dynamic>)['leaveBalance']
               ?.toDouble() ??
@@ -145,15 +161,42 @@ class DatabaseService {
   // 3. SETTINGS & BATCH ACTIONS
   // ==========================================
 
-  // Reset ALL employees back to a default balance (e.g. 8.0 for new year)
-  Future<void> resetAllYearlyLeaves({double defaultBalance = 8.0}) async {
+  Future<void> resetAllYearlyLeaves({double? defaultBalance}) async {
+    final targetBalance = defaultBalance ?? AppConstants.defaultAnnualLeaves;
     final snapshot = await _employees.get();
     final batch = _db.batch();
 
     for (var doc in snapshot.docs) {
-      batch.update(doc.reference, {'leaveBalance': defaultBalance});
+      batch.update(doc.reference, {'leaveBalance': targetBalance});
     }
 
     await batch.commit();
+  }
+
+  // ==========================================
+  // 4. ADMIN & USER MANAGEMENT
+  // ==========================================
+
+  Future<bool> isCurrentUserAdmin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    try {
+      final doc = await _users.doc(user.uid).get();
+      if (doc.exists) {
+        return (doc.data() as Map<String, dynamic>)['isAdmin'] ?? false;
+      }
+    } catch (e) {
+      // Ignore error
+    }
+    return false;
+  }
+
+  Stream<QuerySnapshot> getUsersStream() {
+    return _users.orderBy('email').snapshots();
+  }
+
+  Future<void> updateAdminStatus(String userId, bool isAdmin) async {
+    await _users.doc(userId).set({'isAdmin': isAdmin}, SetOptions(merge: true));
   }
 }

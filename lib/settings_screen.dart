@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+import 'app_constants.dart';
 import 'database_service.dart';
+import 'app_localizations.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,6 +15,24 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final DatabaseService _db = DatabaseService();
   bool _isResetting = false;
+  bool _isAdmin = false;
+  bool _isLoadingAdmin = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminStatus();
+  }
+
+  Future<void> _checkAdminStatus() async {
+    final isAdmin = await _db.isCurrentUserAdmin();
+    if (mounted) {
+      setState(() {
+        _isAdmin = isAdmin;
+        _isLoadingAdmin = false;
+      });
+    }
+  }
 
   void _confirmReset() {
     final textCtrl = TextEditingController();
@@ -19,26 +40,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          "Reset Annual Leaves",
-          style: TextStyle(color: Colors.red),
+        title: Text(
+          AppLocalizations.get('reset_leaves'),
+          style: const TextStyle(color: Colors.red),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Warning: This will reset every employee's leave balance to 8.0 days. This action cannot be undone.",
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Text(
+              "Warning: This will reset every employee's leave balance to ${AppConstants.defaultAnnualLeaves} days. This action cannot be undone.",
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            const Text("Type 'RESET' below to confirm:"),
+            const Text(
+              "Type '${AppConstants.resetConfirmationText}' below to confirm:",
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: textCtrl,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                hintText: "RESET",
+                hintText: AppConstants.resetConfirmationText,
               ),
             ),
           ],
@@ -57,13 +80,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               foregroundColor: Colors.white,
             ),
             onPressed: () async {
-              if (textCtrl.text.trim() == "RESET") {
+              if (textCtrl.text.trim() == AppConstants.resetConfirmationText) {
                 Navigator.pop(ctx);
                 _performReset();
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text("You must type RESET to confirm."),
+                    content: Text("You must type exactly to confirm."),
                   ),
                 );
               }
@@ -78,12 +101,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _performReset() async {
     setState(() => _isResetting = true);
     try {
-      await _db.resetAllYearlyLeaves(defaultBalance: 8.0);
+      await _db.resetAllYearlyLeaves(
+        defaultBalance: AppConstants.defaultAnnualLeaves,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              "Everyone's leave balance successfully reset to 8.0 days",
+              "Balance reset to ${AppConstants.defaultAnnualLeaves} days",
             ),
             backgroundColor: Colors.green,
           ),
@@ -104,10 +129,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Log Out"),
-        content: const Text(
-          "Are you sure you want to log out of the admin panel?",
-        ),
+        title: Text(AppLocalizations.get('log_out')),
+        content: const Text("Are you sure you want to log out?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -133,7 +156,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             },
             icon: const Icon(Icons.logout),
-            label: const Text("Log Out"),
+            label: Text(AppLocalizations.get('log_out')),
           ),
         ],
       ),
@@ -144,31 +167,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          "Settings",
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          AppLocalizations.get('settings'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF2C3E50),
+        foregroundColor: AppColors.primaryText,
         elevation: 0,
       ),
-      body: _isResetting
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text("Resetting leaves for all employees..."),
-                ],
-              ),
-            )
+      body: _isResetting || _isLoadingAdmin
+          ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                const Text(
-                  "System Actions",
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.get('preferences'),
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.blueGrey,
@@ -179,32 +193,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.red.shade200),
+                    side: BorderSide(color: Colors.grey.shade300),
                   ),
                   child: ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
+                        color: Colors.blue.shade50,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.refresh, color: Colors.red),
+                      child: const Icon(Icons.language, color: Colors.blue),
                     ),
-                    title: const Text(
-                      "Reset Annual Leaves",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    title: Text(
+                      AppLocalizations.get('app_language'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle: const Text(
-                      "Set everyone's leave balance to 8.0 days",
+                    trailing: DropdownButton<String>(
+                      value: AppLocalizations.currentLanguage.value,
+                      underline: const SizedBox(),
+                      items: const [
+                        DropdownMenuItem(value: 'en', child: Text("English")),
+                        DropdownMenuItem(
+                          value: 'mr',
+                          child: Text("मराठी (Marathi)"),
+                        ),
+                      ],
+                      onChanged: (String? newValue) async {
+                        if (newValue != null) {
+                          setState(() {
+                            AppLocalizations.currentLanguage.value = newValue;
+                          });
+                          await AppLocalizations.changeLanguage(newValue);
+                        }
+                      },
                     ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: _confirmReset,
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  "Account",
-                  style: TextStyle(
+
+                if (_isAdmin) ...[
+                  Text(
+                    AppLocalizations.get('system_actions'),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.red.shade200),
+                    ),
+                    child: ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.refresh, color: Colors.red),
+                      ),
+                      title: Text(
+                        AppLocalizations.get('reset_leaves'),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(AppLocalizations.get('reset_leaves_sub')),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _confirmReset,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
+                Text(
+                  AppLocalizations.get('account'),
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.blueGrey,
@@ -226,11 +292,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       child: const Icon(Icons.logout, color: Colors.blueGrey),
                     ),
-                    title: const Text(
-                      "Log Out",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    title: Text(
+                      AppLocalizations.get('log_out'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle: const Text("Exit the admin panel"),
+                    subtitle: Text(AppLocalizations.get('log_out_sub')),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: _confirmLogout,
                   ),

@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_signin_button/flutter_signin_button.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Added Firestore Import
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignupScreen extends StatefulWidget {
+  const SignupScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
+class _SignupScreenState extends State<SignupScreen>
     with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   late AnimationController _animationController;
 
@@ -30,44 +32,79 @@ class _LoginScreenState extends State<LoginScreen>
     _animationController.forward();
   }
 
-  Future<void> _signIn() async {
+  Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_passwordController.text.trim() !=
+        _confirmPasswordController.text.trim()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Passwords do not match!"),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     FocusScope.of(context).unfocus();
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+      final userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
+
+      // --- Admin Role Assignment Logic ---
+      if (userCredential.user != null) {
+        // Check if there are any existing users in the database
+        final snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .limit(1)
+            .get();
+        // If the collection is empty, this is the very first user, so make them an Admin!
+        final isFirstUser = snapshot.docs.isEmpty;
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
+              'email': _emailController.text.trim(),
+              'isAdmin': isFirstUser, // True if first user, false otherwise
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+      }
+      // -----------------------------------
 
       if (mounted) {
-        Navigator.pushReplacementNamed(context, "/home");
+        // Pop all previous routes and go directly to home after successful signup
+        Navigator.pushNamedAndRemoveUntil(context, "/home", (route) => false);
       }
     } on FirebaseAuthException catch (e) {
       String message;
       switch (e.code) {
-        case 'user-not-found':
-          message = 'No user found for this email.';
+        case 'email-already-in-use':
+          message = 'An account already exists for this email.';
           break;
-        case 'wrong-password':
-          message = 'Incorrect password entered.';
+        case 'weak-password':
+          message = 'The password provided is too weak.';
           break;
         case 'invalid-email':
           message = 'Invalid email format.';
           break;
-        case 'invalid-credential':
-          message =
-              'Invalid credentials. Please check your email and password.';
-          break;
         default:
-          message = 'Login failed. Please try again.';
+          message = 'Sign up failed. Please try again.';
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (_) {
@@ -89,6 +126,7 @@ class _LoginScreenState extends State<LoginScreen>
     _animationController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -146,10 +184,18 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.blueGrey),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             child: Form(
               key: _formKey,
               child: Column(
@@ -158,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen>
                 children: [
                   _buildAnimatedItem(
                     const Icon(
-                      Icons.lock_person_rounded,
+                      Icons.person_add_alt_1_rounded,
                       size: 80,
                       color: Colors.blue,
                     ),
@@ -167,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen>
                   const SizedBox(height: 20),
                   _buildAnimatedItem(
                     const Text(
-                      'Welcome Back',
+                      'Create Account',
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -180,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen>
                   const SizedBox(height: 8),
                   _buildAnimatedItem(
                     const Text(
-                      'Sign in to continue',
+                      'Sign up to get started',
                       style: TextStyle(fontSize: 16, color: Colors.blueGrey),
                       textAlign: TextAlign.center,
                     ),
@@ -194,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen>
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       decoration: _buildInputDecoration(
-                        'Email',
+                        'Email Address',
                         Icons.email_outlined,
                       ),
                       validator: (value) =>
@@ -210,8 +256,7 @@ class _LoginScreenState extends State<LoginScreen>
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _signIn(),
+                      textInputAction: TextInputAction.next,
                       decoration:
                           _buildInputDecoration(
                             'Password',
@@ -237,31 +282,54 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     4,
                   ),
+                  const SizedBox(height: 20),
 
                   _buildAnimatedItem(
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () =>
-                            Navigator.pushNamed(context, '/forgot-password'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.blue.shade700,
-                        ),
-                        child: const Text(
-                          "Forgot Password?",
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: _obscureConfirmPassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _signUp(),
+                      decoration:
+                          _buildInputDecoration(
+                            'Confirm Password',
+                            Icons.lock_reset_outlined,
+                          ).copyWith(
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureConfirmPassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: Colors.blueGrey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscureConfirmPassword =
+                                      !_obscureConfirmPassword;
+                                });
+                              },
+                            ),
+                          ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please confirm your password';
+                        }
+                        if (value != _passwordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
                     ),
                     5,
                   ),
-                  const SizedBox(height: 10),
+
+                  const SizedBox(height: 40),
 
                   _buildAnimatedItem(
                     SizedBox(
                       height: 55,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _signIn,
+                        onPressed: _isLoading ? null : _signUp,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
@@ -276,7 +344,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               )
                             : const Text(
-                                "Log In",
+                                "Sign Up",
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -286,76 +354,29 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     6,
                   ),
-
                   const SizedBox(height: 20),
 
-                  // Added Sign Up Option Here
                   _buildAnimatedItem(
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text(
-                          "Don't have an account?",
+                          "Already have an account?",
                           style: TextStyle(color: Colors.blueGrey),
                         ),
                         TextButton(
-                          onPressed: () =>
-                              Navigator.pushNamed(context, '/signup'),
+                          onPressed: () => Navigator.pop(context),
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.blue.shade700,
                           ),
                           child: const Text(
-                            "Sign Up",
+                            "Log In",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
                     ),
                     7,
-                  ),
-
-                  const SizedBox(height: 20),
-                  _buildAnimatedItem(
-                    Row(
-                      children: [
-                        Expanded(child: Divider(color: Colors.grey.shade400)),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            "OR",
-                            style: TextStyle(
-                              color: Colors.blueGrey,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        Expanded(child: Divider(color: Colors.grey.shade400)),
-                      ],
-                    ),
-                    8,
-                  ),
-                  const SizedBox(height: 30),
-
-                  _buildAnimatedItem(
-                    SizedBox(
-                      height: 55,
-                      child: SignInButton(
-                        Buttons.Google,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        text: "Sign in with Google",
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Google Sign-In coming soon"),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    9,
                   ),
                 ],
               ),

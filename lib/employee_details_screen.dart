@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// Packages for Exporting
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -11,18 +11,22 @@ import 'package:excel/excel.dart' hide Border;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'app_constants.dart';
 import 'database_service.dart';
+import 'app_localizations.dart';
 
 class EmployeeDetailsScreen extends StatefulWidget {
   final String employeeId;
   final String employeeName;
   final String employeePhone;
+  final bool isAdmin;
 
   const EmployeeDetailsScreen({
     super.key,
     required this.employeeId,
     required this.employeeName,
     required this.employeePhone,
+    required this.isAdmin,
   });
 
   @override
@@ -40,6 +44,41 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
     );
   }
 
+  // --- PHOTO UPLOAD LOGIC ---
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+    );
+
+    if (pickedFile != null) {
+      setState(() => _isExporting = true);
+      try {
+        File imageFile = File(pickedFile.path);
+        String? downloadUrl = await _db.uploadProfilePhoto(
+          widget.employeeId,
+          imageFile,
+        );
+
+        if (downloadUrl != null) {
+          await FirebaseFirestore.instance
+              .collection('employees')
+              .doc(widget.employeeId)
+              .update({'photoUrl': downloadUrl});
+          _safeSnackBar(
+            "Photo updated successfully!",
+            backgroundColor: Colors.green,
+          );
+        }
+      } catch (e) {
+        _safeSnackBar("Failed to upload photo.");
+      } finally {
+        if (mounted) setState(() => _isExporting = false);
+      }
+    }
+  }
+
   Future<void> _callEmployee(String phoneString) async {
     final String phone = phoneString.replaceAll(RegExp(r'\D'), '');
     final Uri url = Uri.parse("tel:$phone");
@@ -48,25 +87,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
     } catch (e) {
       _safeSnackBar("Could not open phone dialer.");
     }
-  }
-
-  String _getFormattedMonthYear() {
-    final now = DateTime.now();
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[now.month - 1]} ${now.year}';
   }
 
   String _formatDate(Timestamp? ts) {
@@ -81,12 +101,11 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
     String empName,
     String empPhone,
   ) async {
-    final String message =
-        "Hello $empName,\n\n"
-        "Your leave for *$daysUsed days* has been approved and recorded.\n"
-        "Your remaining leave balance is *$newBalance days*.\n\n"
-        "Thank you,\nAdmin";
-
+    final String message = AppConstants.buildWhatsAppMessage(
+      empName,
+      daysUsed,
+      newBalance,
+    );
     String phone = empPhone.replaceAll(RegExp(r'\D'), '');
     if (phone.length == 10) phone = '91$phone';
 
@@ -111,8 +130,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text("Delete Leave Record"),
         content: Text(
-          "Are you sure you want to delete the leave for '$reason'?\n\n"
-          "Deleting this will add $daysUsed days back to the employee's balance.",
+          "Are you sure you want to delete the leave for '$reason'?\n\nDeleting this will add $daysUsed days back to the employee's balance.",
         ),
         actions: [
           TextButton(
@@ -147,15 +165,23 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
     );
   }
 
-  // ====================== EDIT EMPLOYEE ======================
   void _showEditEmployeeSheet(
     String currentName,
     String currentDesignation,
     String currentPhone,
+    String currentDepartment,
+    String? currentPhotoUrl,
   ) {
     final nameCtrl = TextEditingController(text: currentName);
     final desigCtrl = TextEditingController(text: currentDesignation);
     final phoneCtrl = TextEditingController(text: currentPhone);
+
+    String selectedDept = AppConstants.getNormalizedDeptName(currentDepartment);
+    List<String> dropdownOptions = AppConstants.allDepartments;
+
+    if (!dropdownOptions.contains(selectedDept)) {
+      selectedDept = dropdownOptions.first;
+    }
 
     showModalBottomSheet(
       context: context,
@@ -163,98 +189,125 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          top: 20,
-          left: 20,
-          right: 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              "Edit Employee Details",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              top: 20,
+              left: 20,
+              right: 20,
             ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: nameCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: "Full Name",
-                prefixIcon: const Icon(Icons.person_outline),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  "Edit Employee Details",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: desigCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: "Designation",
-                prefixIcon: const Icon(Icons.work_outline),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: nameCtrl,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.get('full_name'),
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: "WhatsApp Number",
-                prefixIcon: const Icon(Icons.phone_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: desigCtrl,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.get('designation'),
+                    prefixIcon: const Icon(Icons.work_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameCtrl.text.isEmpty || phoneCtrl.text.isEmpty) return;
-
-                await _db.updateEmployee(
-                  widget.employeeId,
-                  nameCtrl.text.trim(),
-                  desigCtrl.text.trim(),
-                  phoneCtrl.text.trim(),
-                );
-
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  _safeSnackBar(
-                    "Details updated successfully!",
-                    backgroundColor: Colors.green,
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedDept,
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.get('department'),
+                    prefixIcon: const Icon(Icons.domain),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: dropdownOptions
+                      .map(
+                        (dept) => DropdownMenuItem(
+                          value: dept,
+                          child: Text(AppConstants.getLocalizedDeptName(dept)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setSheetState(() => selectedDept = value);
+                    }
+                  },
                 ),
-              ),
-              child: const Text(
-                "Save Changes",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: "WhatsApp Number",
+                    prefixIcon: const Icon(Icons.phone_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (nameCtrl.text.isEmpty || phoneCtrl.text.isEmpty) return;
+                    await _db.updateEmployee(
+                      widget.employeeId,
+                      nameCtrl.text.trim(),
+                      desigCtrl.text.trim(),
+                      phoneCtrl.text.trim(),
+                      selectedDept,
+                      photoUrl: currentPhotoUrl,
+                    );
+                    if (mounted) {
+                      Navigator.pop(ctx);
+                      _safeSnackBar(
+                        "Details updated successfully!",
+                        backgroundColor: Colors.green,
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "Save Changes",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  // ====================== PDF EXPORT (Centered layout) ======================
   Future<void> _exportToPDF() async {
     try {
       setState(() => _isExporting = true);
@@ -265,6 +318,8 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
           .get();
       final currentName = empDoc.data()?['name'] ?? widget.employeeName;
       final designation = empDoc.data()?['designation'] ?? '-';
+      final rawDept = empDoc.data()?['department']?.toString();
+      final department = AppConstants.getNormalizedDeptName(rawDept);
 
       final leavesQuery = await FirebaseFirestore.instance
           .collection('employees')
@@ -273,19 +328,18 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
           .orderBy('timestamp', descending: false)
           .get();
 
-      // Load standard fonts for English
       pw.Font ttf;
       pw.Font ttfBold;
       try {
-        ttf = await PdfGoogleFonts.robotoRegular();
-        ttfBold = await PdfGoogleFonts.robotoBold();
+        ttf = await PdfGoogleFonts.notoSansDevanagariRegular();
+        ttfBold = await PdfGoogleFonts.notoSansDevanagariBold();
       } catch (e) {
         ttf = pw.Font.helvetica();
         ttfBold = pw.Font.helveticaBold();
       }
 
       final pdf = pw.Document();
-      final monthYear = _getFormattedMonthYear();
+      final monthYear = AppConstants.getCurrentMonthYear();
 
       pdf.addPage(
         pw.Page(
@@ -295,7 +349,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
             children: [
               pw.Center(
                 child: pw.Text(
-                  'Zilla Parishad, Dharashiv',
+                  AppLocalizations.get('org_name'),
                   style: pw.TextStyle(
                     font: ttfBold,
                     fontSize: 22,
@@ -306,10 +360,21 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
               pw.SizedBox(height: 4),
               pw.Center(
                 child: pw.Text(
-                  'Panchayat Samiti, Bhoom',
+                  AppLocalizations.get('sub_org_name'),
+                  style: pw.TextStyle(
+                    font: ttfBold,
+                    fontSize: 18,
+                    color: PdfColors.blue800,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  '${AppLocalizations.get('department')}: ${AppConstants.getSubOrgName(department)}',
                   style: pw.TextStyle(
                     font: ttf,
-                    fontSize: 16,
+                    fontSize: 14,
                     color: PdfColors.grey800,
                   ),
                 ),
@@ -333,7 +398,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          'Leave Ledger',
+                          AppLocalizations.get('leave_ledger'),
                           style: pw.TextStyle(
                             font: ttfBold,
                             fontSize: 18,
@@ -342,17 +407,17 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                         ),
                         pw.SizedBox(height: 8),
                         pw.Text(
-                          'Name: $currentName',
+                          '${AppLocalizations.get('name')}: $currentName',
                           style: pw.TextStyle(font: ttfBold, fontSize: 14),
                         ),
                         pw.Text(
-                          'Designation: $designation',
+                          '${AppLocalizations.get('designation')}: $designation',
                           style: pw.TextStyle(font: ttf, fontSize: 13),
                         ),
                       ],
                     ),
                     pw.Text(
-                      'Date - $monthYear',
+                      '${AppLocalizations.get('month')} - $monthYear',
                       style: pw.TextStyle(
                         font: ttfBold,
                         fontSize: 13,
@@ -379,28 +444,14 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                 headerDecoration: const pw.BoxDecoration(
                   color: PdfColors.blue100,
                 ),
-                cellDecoration: (index, data, rowNum) {
-                  return pw.BoxDecoration(
-                    color: rowNum % 2 == 1
-                        ? PdfColors.grey100
-                        : PdfColors.white,
-                  );
-                },
+                cellDecoration: (index, data, rowNum) => pw.BoxDecoration(
+                  color: rowNum % 2 == 1 ? PdfColors.grey100 : PdfColors.white,
+                ),
                 rowDecoration: const pw.BoxDecoration(
                   border: pw.Border(
                     bottom: pw.BorderSide(color: PdfColors.grey400, width: 0.5),
                   ),
                 ),
-                cellAlignment: pw.Alignment.centerLeft,
-                headerAlignments: {
-                  0: pw.Alignment.center,
-                  1: pw.Alignment.center,
-                  2: pw.Alignment.center,
-                  3: pw.Alignment.center,
-                  4: pw.Alignment.center,
-                  5: pw.Alignment.center,
-                  6: pw.Alignment.center,
-                },
                 cellAlignments: {
                   0: pw.Alignment.center,
                   1: pw.Alignment.center,
@@ -412,21 +463,21 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                 },
                 columnWidths: {
                   0: const pw.FixedColumnWidth(30),
-                  1: const pw.FixedColumnWidth(75),
-                  2: const pw.FixedColumnWidth(65),
-                  3: const pw.FixedColumnWidth(65),
-                  4: const pw.FixedColumnWidth(45),
-                  5: const pw.FlexColumnWidth(2),
-                  6: const pw.FixedColumnWidth(75),
+                  1: const pw.FixedColumnWidth(70),
+                  2: const pw.FixedColumnWidth(60),
+                  3: const pw.FixedColumnWidth(60),
+                  4: const pw.FixedColumnWidth(40),
+                  5: const pw.FlexColumnWidth(2.5),
+                  6: const pw.FixedColumnWidth(70),
                 },
                 headers: [
-                  'Sr.No',
-                  'Opening Balance',
-                  'From',
-                  'To',
-                  'Days',
-                  'Reason',
-                  'Closing Balance',
+                  AppLocalizations.get('sr_no'),
+                  AppLocalizations.get('opening_balance'),
+                  AppLocalizations.get('from'),
+                  AppLocalizations.get('to'),
+                  AppLocalizations.get('days'),
+                  AppLocalizations.get('reason'),
+                  AppLocalizations.get('closing_balance'),
                 ],
                 data: leavesQuery.docs.asMap().entries.map((entry) {
                   final index = entry.key + 1;
@@ -461,7 +512,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
     }
   }
 
-  // ====================== EXCEL EXPORT (Centered Layout) ======================
   Future<void> _exportToExcel() async {
     try {
       setState(() => _isExporting = true);
@@ -472,6 +522,8 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
           .get();
       final currentName = empDoc.data()?['name'] ?? widget.employeeName;
       final designation = empDoc.data()?['designation'] ?? '-';
+      final rawDept = empDoc.data()?['department']?.toString();
+      final department = AppConstants.getNormalizedDeptName(rawDept);
 
       final leavesQuery = await FirebaseFirestore.instance
           .collection('employees')
@@ -489,7 +541,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
       sheetObject.setColumnWidth(2, 12.0);
       sheetObject.setColumnWidth(3, 12.0);
       sheetObject.setColumnWidth(4, 10.0);
-      sheetObject.setColumnWidth(5, 45.0);
+      sheetObject.setColumnWidth(5, 30.0);
       sheetObject.setColumnWidth(6, 15.0);
 
       final titleStyle = CellStyle(
@@ -507,7 +559,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
         horizontalAlign: HorizontalAlign.Center,
         verticalAlign: VerticalAlign.Center,
       );
-
       final normalCenter = CellStyle(
         horizontalAlign: HorizontalAlign.Center,
         verticalAlign: VerticalAlign.Center,
@@ -516,7 +567,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
         horizontalAlign: HorizontalAlign.Left,
         verticalAlign: VerticalAlign.Center,
       );
-
       final labelStyle = CellStyle(
         bold: true,
         horizontalAlign: HorizontalAlign.Right,
@@ -548,18 +598,45 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
             style;
       }
 
-      final monthYear = _getFormattedMonthYear();
+      final monthYear = AppConstants.getCurrentMonthYear();
 
-      addMergeCentered('Zilla Parishad, Dharashiv', 0, titleStyle, 6);
-      addMergeCentered('Panchayat Samiti, Bhoom', 1, subTitleStyle, 6);
-      addMergeCentered('Date - $monthYear', 2, subTitleStyle, 6);
-      sheetObject.appendRow([TextCellValue('')]);
-      addMergeCentered('Leave Ledger', 4, titleStyle, 6);
+      addMergeCentered(AppLocalizations.get('org_name'), 0, titleStyle, 6);
+      addMergeCentered(
+        AppLocalizations.get('sub_org_name'),
+        1,
+        subTitleStyle,
+        6,
+      );
+      addMergeCentered(
+        '${AppLocalizations.get('department')}: ${AppConstants.getSubOrgName(department)}',
+        2,
+        subTitleStyle,
+        6,
+      );
+      addMergeCentered(
+        '${AppLocalizations.get('leave_ledger')} - ${AppLocalizations.get('month')}: $monthYear',
+        3,
+        subTitleStyle,
+        6,
+      );
       sheetObject.appendRow([TextCellValue('')]);
 
       sheetObject.appendRow([
-        TextCellValue('Name:'),
+        TextCellValue('${AppLocalizations.get('name')}:'),
         TextCellValue(currentName),
+      ]);
+      sheetObject
+              .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 5))
+              .cellStyle =
+          labelStyle;
+      sheetObject
+              .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 5))
+              .cellStyle =
+          valueStyle;
+
+      sheetObject.appendRow([
+        TextCellValue('${AppLocalizations.get('designation')}:'),
+        TextCellValue(designation),
       ]);
       sheetObject
               .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6))
@@ -569,40 +646,25 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
               .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 6))
               .cellStyle =
           valueStyle;
-
-      sheetObject.appendRow([
-        TextCellValue('Designation:'),
-        TextCellValue(designation),
-      ]);
-      sheetObject
-              .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7))
-              .cellStyle =
-          labelStyle;
-      sheetObject
-              .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 7))
-              .cellStyle =
-          valueStyle;
-
       sheetObject.appendRow([TextCellValue('')]);
 
       sheetObject.appendRow([
-        TextCellValue('Sr.No'),
-        TextCellValue('Opening Balance'),
-        TextCellValue('From'),
-        TextCellValue('To'),
-        TextCellValue('Days'),
-        TextCellValue('Reason'),
-        TextCellValue('Closing Balance'),
+        TextCellValue(AppLocalizations.get('sr_no')),
+        TextCellValue(AppLocalizations.get('opening_balance')),
+        TextCellValue(AppLocalizations.get('from')),
+        TextCellValue(AppLocalizations.get('to')),
+        TextCellValue(AppLocalizations.get('days')),
+        TextCellValue(AppLocalizations.get('reason')),
+        TextCellValue(AppLocalizations.get('closing_balance')),
       ]);
-
       for (int i = 0; i <= 6; i++) {
         sheetObject
-                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 9))
+                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 8))
                 .cellStyle =
             headerStyle;
       }
 
-      int currentRow = 10;
+      int currentRow = 9;
       int srNo = 1;
       for (var doc in leavesQuery.docs) {
         final data = doc.data();
@@ -619,70 +681,18 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
           TextCellValue(data['newBalance']?.toString() ?? '-'),
         ]);
 
-        sheetObject
-                .cell(
-                  CellIndex.indexByColumnRow(
-                    columnIndex: 0,
-                    rowIndex: currentRow,
-                  ),
-                )
-                .cellStyle =
-            normalCenter;
-        sheetObject
-                .cell(
-                  CellIndex.indexByColumnRow(
-                    columnIndex: 1,
-                    rowIndex: currentRow,
-                  ),
-                )
-                .cellStyle =
-            normalCenter;
-        sheetObject
-                .cell(
-                  CellIndex.indexByColumnRow(
-                    columnIndex: 2,
-                    rowIndex: currentRow,
-                  ),
-                )
-                .cellStyle =
-            normalCenter;
-        sheetObject
-                .cell(
-                  CellIndex.indexByColumnRow(
-                    columnIndex: 3,
-                    rowIndex: currentRow,
-                  ),
-                )
-                .cellStyle =
-            normalCenter;
-        sheetObject
-                .cell(
-                  CellIndex.indexByColumnRow(
-                    columnIndex: 4,
-                    rowIndex: currentRow,
-                  ),
-                )
-                .cellStyle =
-            normalCenter;
-        sheetObject
-                .cell(
-                  CellIndex.indexByColumnRow(
-                    columnIndex: 5,
-                    rowIndex: currentRow,
-                  ),
-                )
-                .cellStyle =
-            normalLeft;
-        sheetObject
-                .cell(
-                  CellIndex.indexByColumnRow(
-                    columnIndex: 6,
-                    rowIndex: currentRow,
-                  ),
-                )
-                .cellStyle =
-            normalCenter;
-
+        for (int i = 0; i <= 6; i++) {
+          sheetObject
+              .cell(
+                CellIndex.indexByColumnRow(
+                  columnIndex: i,
+                  rowIndex: currentRow,
+                ),
+              )
+              .cellStyle = (i == 5)
+              ? normalLeft
+              : normalCenter;
+        }
         currentRow++;
       }
 
@@ -693,7 +703,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
             '${directory.path}/Leave_Ledger_${currentName.replaceAll(' ', '_')}.xlsx';
         File file = File(filePath);
         await file.writeAsBytes(fileBytes);
-
         await Share.shareXFiles([
           XFile(filePath),
         ], text: 'Leave Ledger - $currentName');
@@ -705,7 +714,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
     }
   }
 
-  // ====================== RECORD LEAVE ======================
   void _showRecordLeaveSheet(
     double currentBalance,
     String empName,
@@ -745,13 +753,15 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  "Record Leave",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Text(
+                  AppLocalizations.get('record_leave'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
-
                 Row(
                   children: [
                     Expanded(
@@ -772,7 +782,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                         },
                         icon: const Icon(Icons.date_range, size: 18),
                         label: Text(
-                          "From: ${fromDate.day.toString().padLeft(2, '0')}/${fromDate.month.toString().padLeft(2, '0')}/${fromDate.year}",
+                          "${AppLocalizations.get('from')}: ${fromDate.day.toString().padLeft(2, '0')}/${fromDate.month.toString().padLeft(2, '0')}/${fromDate.year}",
                         ),
                       ),
                     ),
@@ -790,13 +800,12 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                         },
                         icon: const Icon(Icons.date_range, size: 18),
                         label: Text(
-                          "To: ${toDate.day.toString().padLeft(2, '0')}/${toDate.month.toString().padLeft(2, '0')}/${toDate.year}",
+                          "${AppLocalizations.get('to')}: ${toDate.day.toString().padLeft(2, '0')}/${toDate.month.toString().padLeft(2, '0')}/${toDate.year}",
                         ),
                       ),
                     ),
                   ],
                 ),
-
                 CheckboxListTile(
                   title: const Text("+ Half Day (0.5 deducted)"),
                   value: isHalfDay,
@@ -805,19 +814,17 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                   onChanged: (val) =>
                       setSheetState(() => isHalfDay = val ?? false),
                 ),
-
                 TextField(
                   controller: reasonCtrl,
                   textCapitalization: TextCapitalization.sentences,
                   decoration: InputDecoration(
-                    labelText: "Reason for Leave",
+                    labelText: AppLocalizations.get('reason'),
                     prefixIcon: const Icon(Icons.edit_note),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -836,7 +843,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
                 ElevatedButton(
                   onPressed: isSubmitting
                       ? null
@@ -850,7 +856,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                             );
                             return;
                           }
-
                           if (days > currentBalance) {
                             _safeSnackBar(
                               "Not enough leave! You only have $currentBalance days remaining.",
@@ -872,9 +877,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                             );
 
                             if (!mounted) return;
-
                             Navigator.pop(ctx);
-
                             _safeSnackBar(
                               "Leave recorded successfully!",
                               backgroundColor: Colors.green,
@@ -974,7 +977,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
         final data = snapshot.data!.data() as Map<String, dynamic>?;
         if (data == null) {
           return const Scaffold(
@@ -985,17 +987,20 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
         final currentName = data['name'] ?? widget.employeeName;
         final currentPhone = data['phone'] ?? widget.employeePhone;
         final designation = data['designation'] ?? 'N/A';
+        final rawDept = data['department']?.toString();
+        final department = AppConstants.getNormalizedDeptName(rawDept);
         final balance = (data['leaveBalance'] ?? 0.0).toDouble();
+        final photoUrl = data['photoUrl']?.toString();
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF8F9FA),
+          backgroundColor: AppColors.background,
           appBar: AppBar(
             title: Text(
               currentName,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF2C3E50),
+            foregroundColor: AppColors.primaryText,
             elevation: 0,
             actions: [
               if (_isExporting)
@@ -1010,15 +1015,18 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                   ),
                 )
               else ...[
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blueGrey),
-                  tooltip: 'Edit Details',
-                  onPressed: () => _showEditEmployeeSheet(
-                    currentName,
-                    designation,
-                    currentPhone,
+                if (widget.isAdmin)
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.blueGrey),
+                    tooltip: 'Edit Details',
+                    onPressed: () => _showEditEmployeeSheet(
+                      currentName,
+                      designation,
+                      currentPhone,
+                      department,
+                      photoUrl,
+                    ),
                   ),
-                ),
                 IconButton(
                   icon: const Icon(Icons.call, color: Colors.blue),
                   tooltip: 'Call',
@@ -1065,32 +1073,74 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                     ),
                   ],
                 ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      "Zilla Parishad, Dharashiv",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
+                    GestureDetector(
+                      onTap: widget.isAdmin ? _pickAndUploadImage : null,
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor: Colors.white24,
+                            backgroundImage:
+                                (photoUrl != null && photoUrl.isNotEmpty)
+                                ? NetworkImage(photoUrl)
+                                : null,
+                            child: (photoUrl == null || photoUrl.isEmpty)
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: Colors.white,
+                                  )
+                                : null,
+                          ),
+                          if (widget.isAdmin)
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                size: 16,
+                                color: Colors.blue,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      "Panchayat Samiti, Bhoom",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white70,
-                        letterSpacing: 0.2,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            AppLocalizations.get('org_name'),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            AppConstants.getSubOrgName(department),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white70,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-
               Column(
                 children: [
                   Padding(
@@ -1155,7 +1205,7 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                           child: Column(
                             children: [
                               Text(
-                                "Total Balance",
+                                AppLocalizations.get('total_balance'),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: balance <= 0
@@ -1184,45 +1234,44 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                       ],
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showRecordLeaveSheet(
-                        balance,
-                        currentName,
-                        currentPhone,
-                      ),
-                      icon: const Icon(Icons.add),
-                      label: const Text(
-                        "Record Leave",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                  if (widget.isAdmin)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showRecordLeaveSheet(
+                          balance,
+                          currentName,
+                          currentPhone,
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        icon: const Icon(Icons.add),
+                        label: Text(
+                          AppLocalizations.get('record_leave'),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(double.infinity, 50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
-
               const SizedBox(height: 16),
               const Divider(height: 1),
-
-              const Padding(
-                padding: EdgeInsets.all(16.0),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    "Leave Ledger",
-                    style: TextStyle(
+                    AppLocalizations.get('leave_ledger'),
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.blueGrey,
@@ -1230,7 +1279,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                   ),
                 ),
               ),
-
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: _db.getEmployeeLeavesStream(widget.employeeId),
@@ -1238,7 +1286,6 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
-
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                       return const Center(
                         child: Text(
@@ -1276,77 +1323,110 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                               dataRowMaxHeight: 55,
                               columnSpacing: 20,
                               horizontalMargin: 20,
-                              columns: const [
+                              columns: [
                                 DataColumn(
-                                  label: Text(
-                                    'Sr.No',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                  label: Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        AppLocalizations.get('sr_no'),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
                                 DataColumn(
-                                  label: Text(
-                                    'Opening Balance',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                  label: Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        AppLocalizations.get('opening_balance'),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
                                 DataColumn(
-                                  label: Text(
-                                    'From',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                  label: Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        AppLocalizations.get('from'),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
                                 DataColumn(
-                                  label: Text(
-                                    'To',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                  label: Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        AppLocalizations.get('to'),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
                                 DataColumn(
-                                  label: Text(
-                                    'Used Days',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                  label: Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        AppLocalizations.get('used_days'),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
                                 DataColumn(
-                                  label: Text(
-                                    'Reason',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                  label: Expanded(
+                                    child: Container(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        AppLocalizations.get('reason'),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
                                 DataColumn(
-                                  label: Text(
-                                    'Closing Balance',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                  label: Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        AppLocalizations.get('closing_balance'),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                                DataColumn(
-                                  label: Text(
-                                    'Action',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                if (widget.isAdmin)
+                                  DataColumn(
+                                    label: Expanded(
+                                      child: Center(
+                                        child: Text(
+                                          AppLocalizations.get('action'),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
                               ],
                               rows: leaves.asMap().entries.map((entry) {
                                 final index = entry.key + 1;
                                 final doc = entry.value;
                                 final data = doc.data() as Map<String, dynamic>;
-
                                 final fDate =
                                     (data['fromDate'] ?? data['date'])
                                         as Timestamp?;
@@ -1355,51 +1435,81 @@ class _EmployeeDetailsScreenState extends State<EmployeeDetailsScreen> {
                                         as Timestamp?;
 
                                 return DataRow(
+                                  color: WidgetStateProperty.all(
+                                    index % 2 == 0
+                                        ? Colors.white
+                                        : Colors.grey.shade50,
+                                  ),
                                   cells: [
-                                    DataCell(Text(index.toString())),
                                     DataCell(
-                                      Text(
-                                        data['previousBalance']?.toString() ??
-                                            '-',
-                                      ),
+                                      Center(child: Text(index.toString())),
                                     ),
-                                    DataCell(Text(_formatDate(fDate))),
-                                    DataCell(Text(_formatDate(tDate))),
                                     DataCell(
-                                      Text(
-                                        data['daysUsed']?.toString() ?? '-',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(Text(data['reason'] ?? '')),
-                                    DataCell(
-                                      Text(
-                                        data['newBalance']?.toString() ?? '-',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green,
+                                      Center(
+                                        child: Text(
+                                          data['previousBalance']?.toString() ??
+                                              '-',
                                         ),
                                       ),
                                     ),
                                     DataCell(
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline,
-                                          color: Colors.redAccent,
-                                          size: 20,
-                                        ),
-                                        splashRadius: 20,
-                                        tooltip: "Delete Record",
-                                        onPressed: () => _confirmDeleteLeave(
-                                          doc.id,
-                                          (data['daysUsed'] ?? 0.0).toDouble(),
-                                          data['reason'] ?? 'Unknown',
+                                      Center(child: Text(_formatDate(fDate))),
+                                    ),
+                                    DataCell(
+                                      Center(child: Text(_formatDate(tDate))),
+                                    ),
+                                    DataCell(
+                                      Center(
+                                        child: Text(
+                                          data['daysUsed']?.toString() ?? '-',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.red,
+                                          ),
                                         ),
                                       ),
                                     ),
+                                    DataCell(
+                                      Container(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          data['reason'] ?? '',
+                                          textAlign: TextAlign.left,
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Center(
+                                        child: Text(
+                                          data['newBalance']?.toString() ?? '-',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    if (widget.isAdmin)
+                                      DataCell(
+                                        Center(
+                                          child: IconButton(
+                                            icon: const Icon(
+                                              Icons.delete_outline,
+                                              color: Colors.redAccent,
+                                              size: 20,
+                                            ),
+                                            splashRadius: 20,
+                                            tooltip: "Delete Record",
+                                            onPressed: () =>
+                                                _confirmDeleteLeave(
+                                                  doc.id,
+                                                  (data['daysUsed'] ?? 0.0)
+                                                      .toDouble(),
+                                                  data['reason'] ?? 'Unknown',
+                                                ),
+                                          ),
+                                        ),
+                                      ),
                                   ],
                                 );
                               }).toList(),
